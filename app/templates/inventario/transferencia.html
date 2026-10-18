@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block titulo %}Transferencias · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="max-w-2xl mx-auto">
+    <a href="{{ url_for('inventario.index') }}" class="text-sm text-terracota font-bold hover:underline">← Volver al inventario</a>
+    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-6 mt-2">
+        <h1 class="font-clasica text-2xl font-bold mb-1">🔁 Transferencia entre almacenes</h1>
+        <p class="text-sm text-cafe/70 mb-5">
+            Mueve insumos de Materia Prima (ALM-MP) a Cocina (ALM-COC) o Mostrador (ALM-POS),
+            o regresa producto sobrante.
+        </p>
+
+        <form method="post" class="grid sm:grid-cols-2 gap-4">
+            <div class="sm:col-span-2">
+                <label class="block text-sm font-semibold mb-1">Insumo</label>
+                <select name="insumo_id" required class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                    {% for insumo in insumos %}
+                    <option value="{{ insumo.id }}">{{ insumo.codigo }} · {{ insumo.nombre }} ({{ insumo.unidad }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Almacén de origen</label>
+                <select name="almacen_origen_id" required class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                    {% for almacen in almacenes %}
+                    <option value="{{ almacen.id }}">{{ almacen.codigo }} · {{ almacen.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Almacén de destino</label>
+                <select name="almacen_destino_id" required class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                    {% for almacen in almacenes %}
+                    <option value="{{ almacen.id }}">{{ almacen.codigo }} · {{ almacen.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="sm:col-span-2">
+                <label class="block text-sm font-semibold mb-1">Cantidad</label>
+                <input type="number" name="cantidad" step="0.001" min="0.001" required
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <div class="sm:col-span-2">
+                <button type="submit" class="w-full bg-cafe hover:bg-cafeoscuro text-white font-bold py-3 rounded-xl transition">
+                    🔁 Realizar transferencia
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

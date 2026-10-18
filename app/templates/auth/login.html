@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block titulo %}Iniciar sesión · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="min-h-[70vh] flex items-center justify-center">
+    <div class="w-full max-w-md animar-entrada">
+        <div class="text-center mb-6">
+            <p class="text-5xl mb-2">🎬</p>
+            <h1 class="font-clasica text-3xl font-bold text-cafe">La Época de Oro</h1>
+            <p class="text-sm text-terracota font-semibold tracking-widest uppercase mt-1">Acceso al sistema ERP</p>
+            <p class="text-xs text-cafe/70 mt-2">Café, Guisados y Nostalgia — Sazón y calidez de hogar</p>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-xl border border-cremaoscura p-6">
+            <h2 class="font-clasica text-xl font-bold mb-4">Ingreso de personal</h2>
+
+            <form method="post" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold mb-1" for="username">Usuario / Identificador</label>
+                    <input type="text" name="username" id="username" required autofocus
+                           autocomplete="username"
+                           class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/50"
+                           placeholder="Ej. admin, chef1, mesero1">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1" for="password">Contraseña</label>
+                    <input type="password" name="password" id="password" required
+                           autocomplete="current-password"
+                           class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/50"
+                           placeholder="••••••••">
+                    <label class="flex items-center gap-2 text-xs mt-2 text-cafe/80 cursor-pointer">
+                        <input type="checkbox" id="mostrar_password" class="accent-terracota">
+                        👁️ Mostrar contraseña al escribir
+                    </label>
+                </div>
+
+                <button type="submit"
+                        class="w-full bg-terracota hover:bg-terracotaoscuro text-white font-bold py-2.5 rounded-xl transition shadow">
+                    🚀 Entrar al sistema
+                </button>
+            </form>
+
+            <div class="mt-4 text-center">
+                <a href="{{ url_for('auth.recuperar_password') }}"
+                   class="text-xs text-terracota hover:underline font-semibold">
+                    ¿Olvidaste tu contraseña? Restablécala aquí
+                </a>
+            </div>
+        </div>
+
+        <div class="mt-4 bg-cafe/5 border border-cremaoscura rounded-xl p-4 text-xs text-cafe/90">
+            <p class="font-bold mb-1">Cuentas de prueba (entorno de demostración):</p>
+            <p>👑 admin / admin123 &nbsp;·&nbsp; 🍳 chef1 y chef2 / chef123</p>
+            <p>📋 mesero1 y mesero2 / mesero123</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const alternar = document.getElementById('mostrar_password');
+    const campo = document.getElementById('password');
+    alternar.addEventListener('change', () => {
+        campo.type = alternar.checked ? 'text' : 'password';
+    });
+</script>
+{% endblock %}

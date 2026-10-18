@@ -1,0 +1,224 @@
+from datetime import datetime
+
+from app.constants import (
+    CUENTA_COSTO_VENTAS,
+    CUENTA_INVENTARIO,
+    CUENTA_VENTAS,
+    GUISADOS,
+    GUISADO_A_INSUMO,
+    PORCION_GUISADO_KG,
+    EstadoComanda,
+    MetodoPago,
+    TipoOrden,
+    Turno,
+)
+from app.extensions import db
+from app.models.ventas import Comanda, Venta, VentaDetalle
+from app.repositories.inventario_repository import InsumoRepositorio
+from app.repositories.menu_repository import ProductoRepositorio
+from app.repositories.venta_repository import ComandaRepositorio, VentaRepositorio
+from app.services.contabilidad_service import ContabilidadService
+from app.services.excepciones import DatosInvalidosError
+from app.services.inventario_service import InventarioService
+
+
+class VentaService:
+    def __init__(
+        self,
+        ventas=None,
+        comandas=None,
+        productos=None,
+        insumos=None,
+        inventario=None,
+        contabilidad=None,
+    ):
+        self.ventas = ventas or VentaRepositorio()
+        self.comandas = comandas or ComandaRepositorio()
+        self.productos = productos or ProductoRepositorio()
+        self.insumos = insumos or InsumoRepositorio()
+        self.inventario = inventario or InventarioService()
+        self.contabilidad = contabilidad or ContabilidadService()
+
+    def _expandir_items(self, items, turno):
+        lineas = []
+        requerimientos = {}
+
+        for item in items:
+            producto = self.productos.obtener(int(item.get("producto_id") or 0))
+            if producto is None or not producto.activo:
+                raise DatosInvalidosError(
+                    "Uno de los productos del pedido no existe o está inactivo."
+                )
+            if not producto.aplica_turno(turno):
+                raise DatosInvalidosError(
+                    f"El producto '{producto.nombre}' no pertenece al turno "
+                    f"{Turno.ETIQUETAS[turno]}."
+                )
+
+            cantidad = int(item.get("cantidad") or 0)
+            if cantidad < 1 or cantidad > 50:
+                raise DatosInvalidosError(
+                    f"La cantidad de '{producto.nombre}' debe estar entre 1 y 50."
+                )
+
+            guisado = (item.get("guisado") or "").strip()
+            if producto.requiere_guisado:
+                if guisado not in GUISADOS:
+                    raise DatosInvalidosError(
+                        f"Selecciona un guisado válido para '{producto.nombre}'."
+                    )
+            else:
+                guisado = ""
+
+            almacen_id = producto.almacen_consumo_id
+            if almacen_id is None:
+                raise DatosInvalidosError(
+                    f"El producto '{producto.nombre}' no tiene almacén de consumo configurado."
+                )
+
+            costo_linea = 0.0
+            for ingrediente in producto.receta:
+                clave = (ingrediente.insumo_id, almacen_id)
+                requerimientos[clave] = (
+                    requerimientos.get(clave, 0.0) + ingrediente.cantidad * cantidad
+                )
+                costo_linea += (
+                    ingrediente.cantidad * ingrediente.insumo.costo_unitario * cantidad
+                )
+
+            if guisado:
+                insumo_guisado = self.insumos.por_codigo(GUISADO_A_INSUMO[guisado])
+                if insumo_guisado is None:
+                    raise DatosInvalidosError(
+                        f"El insumo del guisado '{guisado}' no está configurado en el almacén."
+                    )
+                clave = (insumo_guisado.id, almacen_id)
+                requerimientos[clave] = (
+                    requerimientos.get(clave, 0.0) + PORCION_GUISADO_KG * cantidad
+                )
+                costo_linea += PORCION_GUISADO_KG * insumo_guisado.costo_unitario * cantidad
+
+            subtotal = round(producto.precio * cantidad, 2)
+            lineas.append(
+                {
+                    "producto": producto,
+                    "cantidad": cantidad,
+                    "guisado": guisado,
+                    "precio_unitario": producto.precio,
+                    "subtotal": subtotal,
+                    "costo_linea": round(costo_linea, 2),
+                }
+            )
+
+        return lineas, requerimientos
+
+    def registrar_venta(self, mesero_id, turno, tipo_orden, metodo_pago, items, usuario_id=None):
+        if turno not in Turno.TODOS:
+            raise DatosInvalidosError("El turno seleccionado no es válido.")
+        if tipo_orden not in (TipoOrden.AQUI, TipoOrden.LLEVAR):
+            raise DatosInvalidosError("La modalidad de consumo no es válida.")
+        if metodo_pago not in MetodoPago.TODOS:
+            raise DatosInvalidosError("El método de pago no es válido.")
+        if not items:
+            raise DatosInvalidosError("El pedido no tiene productos. Agrega al menos uno.")
+
+        lineas, requerimientos = self._expandir_items(items, turno)
+        self.inventario.verificar_disponibilidad(requerimientos)
+
+        total = round(sum(linea["subtotal"] for linea in lineas), 2)
+        costo_total = round(sum(linea["costo_linea"] for linea in lineas), 2)
+
+        venta = Venta(
+            folio=self.ventas.siguiente_folio(),
+            turno=turno,
+            tipo_orden=tipo_orden,
+            metodo_pago=metodo_pago,
+            total=total,
+            costo_insumos=costo_total,
+            mesero_id=mesero_id,
+        )
+        for linea in lineas:
+            venta.detalles.append(
+                VentaDetalle(
+                    producto_id=linea["producto"].id,
+                    producto_nombre=linea["producto"].nombre,
+                    guisado=linea["guisado"],
+                    cantidad=linea["cantidad"],
+                    precio_unitario=linea["precio_unitario"],
+                    subtotal=linea["subtotal"],
+                    costo_linea=linea["costo_linea"],
+                )
+            )
+        self.ventas.agregar(venta)
+        db.session.flush()
+
+        comanda = Comanda(
+            folio=self.comandas.siguiente_folio(),
+            venta_id=venta.id,
+            turno=turno,
+            tipo_orden=tipo_orden,
+            estado=EstadoComanda.EN_PREPARACION,
+        )
+        self.comandas.agregar(comanda)
+
+        self.inventario.descontar_requerimientos(
+            requerimientos, referencia=venta.folio, usuario_id=usuario_id
+        )
+
+        cuenta_cobro = MetodoPago.CUENTA_CONTABLE[metodo_pago]
+        self.contabilidad.registrar_asiento(
+            f"Venta {venta.folio} - {Turno.ETIQUETAS[turno]} - {TipoOrden.ETIQUETAS[tipo_orden]}",
+            [(cuenta_cobro, total, 0.0), (CUENTA_VENTAS, 0.0, total)],
+            origen="VENTA",
+            referencia=venta.folio,
+        )
+        if costo_total > 0:
+            self.contabilidad.registrar_asiento(
+                f"Costo de venta (BOM) {venta.folio}",
+                [(CUENTA_COSTO_VENTAS, costo_total, 0.0), (CUENTA_INVENTARIO, 0.0, costo_total)],
+                origen="VENTA",
+                referencia=venta.folio,
+            )
+
+        db.session.commit()
+        return venta
+
+    def comanda_de(self, comanda_id):
+        return self.comandas.obtener(comanda_id)
+
+    def marcar_comanda_lista(self, comanda_id):
+        comanda = self.comandas.obtener(comanda_id)
+        if comanda is None:
+            raise DatosInvalidosError("La comanda indicada no existe.")
+        if comanda.estado != EstadoComanda.EN_PREPARACION:
+            raise DatosInvalidosError("Solo las comandas en preparación pueden marcarse como listas.")
+        comanda.estado = EstadoComanda.LISTA
+        comanda.lista_en = datetime.now()
+        db.session.commit()
+        return comanda
+
+    def marcar_comanda_entregada(self, comanda_id):
+        comanda = self.comandas.obtener(comanda_id)
+        if comanda is None:
+            raise DatosInvalidosError("La comanda indicada no existe.")
+        if comanda.estado == EstadoComanda.ENTREGADA:
+            raise DatosInvalidosError("La comanda ya fue entregada.")
+        comanda.estado = EstadoComanda.ENTREGADA
+        comanda.entregada_en = datetime.now()
+        db.session.commit()
+        return comanda
+
+    def comandas_activas(self):
+        return self.comandas.activas()
+
+    def historial_comandas(self, limite=50):
+        return self.comandas.historial(limite)
+
+    def venta_de(self, venta_id):
+        return self.ventas.obtener(venta_id)
+
+    def pedidos_del_mesero(self, mesero_id, limite=30):
+        return self.ventas.del_mesero(mesero_id, limite)
+
+    def ventas_recientes(self, limite=50):
+        return self.ventas.recientes(limite)

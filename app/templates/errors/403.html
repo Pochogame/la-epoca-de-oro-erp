@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block titulo %}Acceso denegado · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="min-h-[50vh] flex items-center justify-center">
+    <div class="text-center max-w-md">
+        <p class="text-6xl mb-4">🚫</p>
+        <h1 class="font-clasica text-2xl font-bold mb-2">Acceso denegado</h1>
+        <p class="text-sm text-cafe/70 mb-6">
+            Tu rol no tiene permiso para entrar a esta sección del sistema.
+            Si necesitas acceso, solicítalo al administrador.
+        </p>
+        <a href="{{ url_for('dashboard.index') }}"
+           class="inline-block bg-terracota hover:bg-terracotaoscuro text-white font-bold px-5 py-2.5 rounded-xl transition">
+            Volver al inicio
+        </a>
+    </div>
+</div>
+{% endblock %}

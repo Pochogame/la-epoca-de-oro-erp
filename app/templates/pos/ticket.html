@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block titulo %}Ticket {{ venta.folio }} · La Época de Oro{% endblock %}
+
+{% block contenido %}
+<div class="flex items-center justify-between mb-4 no-print">
+    <a href="{{ url_for('pos.index') }}" class="text-sm text-terracota font-bold hover:underline">← Volver al POS</a>
+    <button onclick="window.print()"
+            class="bg-cafe hover:bg-cafeoscuro text-white text-sm font-bold px-4 py-2 rounded-xl transition">
+        🖨️ Imprimir ticket
+    </button>
+</div>
+
+<div class="flex justify-center">
+    <div class="ticket-papel w-full max-w-sm bg-white rounded-2xl shadow-xl border border-cremaoscura p-6 animar-entrada">
+        <div class="text-center border-b-2 border-dashed border-cremaoscura pb-4">
+            <p class="text-4xl">🎬</p>
+            <h1 class="font-clasica text-2xl font-bold text-cafe">La Época de Oro</h1>
+            <p class="text-xs text-terracota font-semibold tracking-widest uppercase">Café, Guisados y Nostalgia</p>
+            <p class="text-[11px] text-cafe/60 mt-1">Sazón y calidez de hogar</p>
+        </div>
+
+        <div class="text-xs space-y-1 py-3 border-b-2 border-dashed border-cremaoscura">
+            <div class="flex justify-between"><span class="text-cafe/60">Folio</span><span class="font-bold">{{ venta.folio }}</span></div>
+            <div class="flex justify-between"><span class="text-cafe/60">Fecha</span><span>{{ venta.fecha | fecha_hora }}</span></div>
+            <div class="flex justify-between"><span class="text-cafe/60">Atendió</span><span>{{ venta.mesero.nombre }}</span></div>
+            <div class="flex justify-between"><span class="text-cafe/60">Turno</span><span>{{ Turno.ICONOS[venta.turno] }} {{ Turno.ETIQUETAS[venta.turno] }}</span></div>
+            <div class="flex justify-between"><span class="text-cafe/60">Modalidad</span><span>{{ TipoOrden.ICONOS[venta.tipo_orden] }} {{ TipoOrden.ETIQUETAS[venta.tipo_orden] }}</span></div>
+        </div>
+
+        <table class="w-full text-xs my-3">
+            <thead>
+                <tr class="text-left text-[10px] uppercase text-cafe/60 border-b border-cremaoscura">
+                    <th class="py-1">Cant</th>
+                    <th class="py-1">Producto</th>
+                    <th class="py-1 text-right">Importe</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for detalle in venta.detalles %}
+                <tr class="border-b border-crema/60 align-top">
+                    <td class="py-1.5">{{ detalle.cantidad }}</td>
+                    <td class="py-1.5">
+                        {{ detalle.producto_nombre }}
+                        {% if detalle.guisado %}
+                        <span class="block text-[10px] text-terracota font-bold">🍲 {{ detalle.guisado }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-1.5 text-right font-semibold">{{ detalle.subtotal | moneda }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="border-t-2 border-dashed border-cremaoscura pt-3">
+            <div class="flex justify-between text-sm">
+                <span class="font-bold">TOTAL</span>
+                <span class="font-bold text-lg text-terracota">{{ venta.total | moneda }}</span>
+            </div>
+            <div class="flex justify-between text-xs mt-1">
+                <span class="text-cafe/60">Método de pago</span>
+                <span class="font-semibold">{{ MetodoPago.ETIQUETAS[venta.metodo_pago] }}</span>
+            </div>
+        </div>
+
+        <div class="text-center text-[11px] text-cafe/70 mt-4 border-t-2 border-dashed border-cremaoscura pt-3">
+            <p class="font-clasica font-bold text-cafe">¡Gracias por su visita!</p>
+            <p>Lo esperamos pronto en La Época de Oro 🌟</p>
+            <p class="mt-1 text-[10px] text-cafe/50">Conserve su ticket · Precios en MXN</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

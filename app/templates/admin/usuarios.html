@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block titulo %}Usuarios y roles · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="mb-4">
+    <h1 class="font-clasica text-2xl font-bold">🔑 Usuarios y roles</h1>
+    <p class="text-sm text-cafe/70">
+        Solo el administrador puede dar de alta personal. Las contraseñas se guardan cifradas (hash).
+    </p>
+</div>
+
+<div class="grid lg:grid-cols-3 gap-5">
+    <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5 h-fit">
+        <h2 class="font-clasica text-lg font-bold mb-4">Nuevo colaborador</h2>
+        <form method="post" class="space-y-3">
+            <div>
+                <label class="block text-sm font-semibold mb-1">Usuario (login)</label>
+                <input type="text" name="username" required minlength="3" maxlength="30"
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Nombre completo</label>
+                <input type="text" name="nombre" required maxlength="120"
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Correo electrónico</label>
+                <input type="email" name="email" required maxlength="120"
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Rol</label>
+                <select name="rol" required class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                    {% for rol in roles %}
+                    <option value="{{ rol }}">{{ Rol.ETIQUETAS[rol] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm font-semibold mb-1">Contraseña</label>
+                    <input type="password" name="password" required minlength="6"
+                           class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1">Sueldo diario</label>
+                    <input type="number" name="sueldo_diario" step="0.01" min="0" value="0"
+                           class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                </div>
+            </div>
+            <button type="submit" class="w-full bg-verde hover:bg-verde/80 text-white font-bold py-3 rounded-xl transition">
+                ➕ Crear usuario
+            </button>
+        </form>
+    </section>
+
+    <section class="lg:col-span-2 space-y-4">
+        {% for usuario in usuarios %}
+        <article class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4 {{ 'opacity-60' if not usuario.activo }}">
+            <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-terracota text-white flex items-center justify-center font-bold">
+                        {{ usuario.nombre[0] | upper }}
+                    </div>
+                    <div>
+                        <p class="font-bold">{{ usuario.nombre }}</p>
+                        <p class="text-xs text-cafe/60">
+                            @{{ usuario.username }} · {{ usuario.email }}
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold px-2 py-1 rounded-full
+                        {{ 'bg-dorado/20 text-cafe' if usuario.rol == Rol.ADMIN }}
+                        {{ 'bg-amber-100 text-amber-800' if usuario.rol == Rol.CHEF_SUPERVISOR }}
+                        {{ 'bg-blue-50 text-blue-700' if usuario.rol == Rol.MESERO_POS }}">
+                        {{ Rol.ETIQUETAS[usuario.rol] }}
+                    </span>
+                    <span class="text-xs font-semibold px-2 py-1 rounded-full {{ 'bg-verdementa text-verde' if usuario.activo else 'bg-red-50 text-red-700' }}">
+                        {{ 'Activo' if usuario.activo else 'Inactivo' }}
+                    </span>
+                </div>
+            </div>
+
+            <form method="post" action="{{ url_for('admin.editar_usuario', usuario_id=usuario.id) }}"
+                  class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+                <div class="lg:col-span-1">
+                    <label class="block text-[10px] font-bold uppercase text-cafe/60">Nombre</label>
+                    <input type="text" name="nombre" value="{{ usuario.nombre }}" required maxlength="120"
+                           class="w-full border border-cremaoscura rounded-lg px-2 py-1.5 bg-crema/40 text-sm">
+                </div>
+                <div class="lg:col-span-1">
+                    <label class="block text-[10px] font-bold uppercase text-cafe/60">Correo</label>
+                    <input type="email" name="email" value="{{ usuario.email }}" required
+                           class="w-full border border-cremaoscura rounded-lg px-2 py-1.5 bg-crema/40 text-sm">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-cafe/60">Rol</label>
+                    <select name="rol" class="w-full border border-cremaoscura rounded-lg px-2 py-1.5 bg-crema/40 text-sm">
+                        {% for rol in roles %}
+                        <option value="{{ rol }}" {{ 'selected' if usuario.rol == rol }}>{{ Rol.ETIQUETAS[rol] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-cafe/60">Sueldo diario</label>
+                    <input type="number" name="sueldo_diario" step="0.01" min="0" value="{{ usuario.sueldo_diario }}"
+                           class="w-full border border-cremaoscura rounded-lg px-2 py-1.5 bg-crema/40 text-sm">
+                </div>
+                <div class="lg:col-span-2">
+                    <label class="block text-[10px] font-bold uppercase text-cafe/60">Nueva contraseña (opcional)</label>
+                    <input type="password" name="nueva_password" minlength="6" placeholder="Dejar en blanco para conservar"
+                           class="w-full border border-cremaoscura rounded-lg px-2 py-1.5 bg-crema/40 text-sm">
+                </div>
+                <label class="flex items-center gap-2 text-sm font-semibold cursor-pointer pb-1.5">
+                    <input type="checkbox" name="activo" class="accent-verde" {{ 'checked' if usuario.activo }}>
+                    Activo
+                </label>
+                <button type="submit" class="bg-cafe hover:bg-cafeoscuro text-white text-sm font-bold px-4 py-2 rounded-lg">
+                    💾 Guardar cambios
+                </button>
+            </form>
+        </article>
+        {% endfor %}
+    </section>
+</div>
+{% endblock %}

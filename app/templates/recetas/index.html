@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block titulo %}Recetas (BOM) · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="font-clasica text-2xl font-bold">📖 Recetas y productos (BOM)</h1>
+        <p class="text-sm text-cafe/70">
+            Cada venta descuenta automáticamente los insumos definidos aquí en el almacén de consumo del producto.
+        </p>
+    </div>
+</div>
+
+<div class="grid lg:grid-cols-2 gap-5 mb-6">
+    <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
+        <h2 class="font-clasica text-lg font-bold mb-4">➕ Nuevo producto</h2>
+        <form method="post" action="{{ url_for('recetas.crear_producto') }}" class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block text-sm font-semibold mb-1">Código</label>
+                <input type="text" name="codigo" required maxlength="30"
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Precio (MXN)</label>
+                <input type="number" name="precio" step="0.50" min="0.5" required
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <div class="col-span-2">
+                <label class="block text-sm font-semibold mb-1">Nombre</label>
+                <input type="text" name="nombre" required maxlength="120"
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Categoría</label>
+                <input type="text" name="categoria" required list="categorias-sugeridas"
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                <datalist id="categorias-sugeridas">
+                    <option value="Bebidas Calientes"></option>
+                    <option value="Barra Fría (Frappés y Smoothies)"></option>
+                    <option value="Panadería y Repostería"></option>
+                    <option value="Almuerzos Caseros"></option>
+                    <option value="Platillos de Cuchara"></option>
+                    <option value="Antojitos (Tacos y Tortas)"></option>
+                </datalist>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Turno</label>
+                <select name="turno" class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                    {% for turno in turnos %}
+                    <option value="{{ turno }}">{{ Turno.ICONOS[turno] }} {{ Turno.ETIQUETAS[turno] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Almacén de consumo</label>
+                <select name="almacen_consumo_id" required class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                    {% for almacen in almacenes %}
+                    <option value="{{ almacen.id }}">{{ almacen.codigo }} · {{ almacen.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex items-end">
+                <label class="flex items-center gap-2 text-sm font-semibold cursor-pointer">
+                    <input type="checkbox" name="requiere_guisado" class="accent-terracota">
+                    🍲 Pide guisado
+                </label>
+            </div>
+            <div class="col-span-2">
+                <button type="submit" class="w-full bg-verde hover:bg-verde/80 text-white font-bold py-3 rounded-xl transition">
+                    💾 Guardar producto
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
+        <h2 class="font-clasica text-lg font-bold mb-4">🧪 Agregar ingrediente a receta</h2>
+        <form method="post" action="{{ url_for('recetas.agregar_ingrediente') }}" class="space-y-3">
+            <div>
+                <label class="block text-sm font-semibold mb-1">Producto</label>
+                <select name="producto_id" required class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                    {% for producto in productos %}
+                    <option value="{{ producto.id }}">{{ producto.nombre }} ({{ producto.categoria }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm font-semibold mb-1">Insumo</label>
+                    <select name="insumo_id" required class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                        {% for insumo in insumos %}
+                        <option value="{{ insumo.id }}">{{ insumo.nombre }} ({{ insumo.unidad }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1">Cantidad por platillo</label>
+                    <input type="number" name="cantidad" step="0.0001" min="0.0001" required
+                           class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                </div>
+            </div>
+            <p class="text-xs text-cafe/60">
+                Si el ingrediente ya existe en la receta, se actualizará su cantidad.
+            </p>
+            <button type="submit" class="w-full bg-cafe hover:bg-cafeoscuro text-white font-bold py-3 rounded-xl transition">
+                🧪 Guardar ingrediente
+            </button>
+        </form>
+    </section>
+</div>
+
+<h2 class="font-clasica text-xl font-bold mb-3">🍽️ Catálogo con receta y costo</h2>
+<div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+    {% for producto in productos %}
+    <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+        <div class="flex items-start justify-between gap-2">
+            <div>
+                <h3 class="font-bold leading-tight">{{ producto.nombre }}</h3>
+                <p class="text-xs text-cafe/60">{{ producto.categoria }}</p>
+            </div>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cremaoscura whitespace-nowrap">
+                {{ Turno.ICONOS[producto.turno] if producto.turno in Turno.TODOS and producto.turno != 'AMBOS' else '☀️🌙' }}
+                {{ Turno.ETIQUETAS.get(producto.turno, 'Ambos turnos') }}
+            </span>
+        </div>
+        <div class="flex justify-between text-xs mt-2 mb-2">
+            <span>Precio: <b class="text-terracota">{{ producto.precio | moneda }}</b></span>
+            <span>Costo receta: <b>{{ producto.costo_receta | moneda }}</b></span>
+        </div>
+        {% if recetas[producto.id] %}
+        <table class="w-full text-xs">
+            <tbody>
+                {% for linea in recetas[producto.id] %}
+                <tr class="border-t border-crema/60">
+                    <td class="py-1 pr-2">{{ linea.insumo.nombre }}</td>
+                    <td class="py-1 text-right whitespace-nowrap">{{ linea.cantidad | cantidad }} {{ linea.insumo.unidad }}</td>
+                    <td class="py-1 text-right whitespace-nowrap text-cafe/60">{{ linea.costo | moneda }}</td>
+                    <td class="py-1 text-right">
+                        <form method="post" action="{{ url_for('recetas.eliminar_ingrediente', linea_id=linea.id) }}">
+                            <button type="submit" class="text-red-500 font-bold" title="Quitar de la receta">✕</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-xs text-cafe/50">Sin receta registrada (no descuenta inventario).</p>
+        {% endif %}
+    </section>
+    {% endfor %}
+</div>
+{% endblock %}

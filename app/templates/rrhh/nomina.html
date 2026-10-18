@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block titulo %}Nómina · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="font-clasica text-2xl font-bold">💰 Cálculo de Nómina</h1>
+        <p class="text-sm text-cafe/70">
+            Días trabajados (asistencias) × sueldo diario base · al pagar se genera el gasto y asiento contable
+        </p>
+    </div>
+    <a href="{{ url_for('rrhh.asistencias') }}" class="text-sm bg-white border border-cremaoscura px-4 py-2 rounded-xl font-bold hover:bg-crema transition">
+        👥 Ver Asistencias →
+    </a>
+</div>
+
+<div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4 mb-5">
+    <div class="flex flex-wrap items-end gap-3">
+        <div class="flex gap-2">
+            <a href="{{ url_for('rrhh.nomina', periodo='semana') }}"
+               class="text-sm font-bold px-4 py-2 rounded-xl border {{ 'bg-terracota text-white border-terracota' if request.args.get('periodo', 'semana') == 'semana' else 'border-cremaoscura hover:bg-crema' }}">
+                📅 Semana actual
+            </a>
+            <a href="{{ url_for('rrhh.nomina', periodo='mes') }}"
+               class="text-sm font-bold px-4 py-2 rounded-xl border {{ 'bg-terracota text-white border-terracota' if request.args.get('periodo') == 'mes' else 'border-cremaoscura hover:bg-crema' }}">
+                🗓️ Mes actual
+            </a>
+        </div>
+        <form method="get" class="flex items-end gap-2 flex-wrap">
+            <input type="hidden" name="periodo" value="manual">
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-cafe/60">Desde</label>
+                <input type="date" name="desde" value="{{ desde.isoformat() }}"
+                       class="border border-cremaoscura rounded-lg px-2 py-1.5 bg-crema/40 text-sm">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-cafe/60">Hasta</label>
+                <input type="date" name="hasta" value="{{ hasta.isoformat() }}"
+                       class="border border-cremaoscura rounded-lg px-2 py-1.5 bg-crema/40 text-sm">
+            </div>
+            <button type="submit" class="bg-cafe hover:bg-cafeoscuro text-white text-sm font-bold px-4 py-2 rounded-lg">
+                Calcular periodo
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="grid lg:grid-cols-3 gap-5">
+    <section class="lg:col-span-2 bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
+        <h2 class="font-clasica text-lg font-bold mb-1">Periodo calculado</h2>
+        <p class="text-sm text-cafe/70 mb-4">
+            Del <b>{{ desde.strftime('%d/%m/%Y') }}</b> al <b>{{ hasta.strftime('%d/%m/%Y') }}</b>
+        </p>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-xs uppercase text-cafe/60 border-b border-cremaoscura">
+                        <th class="py-2 pr-3">Trabajador</th>
+                        <th class="py-2 pr-3">Rol</th>
+                        <th class="py-2 pr-3 text-right">Sueldo diario</th>
+                        <th class="py-2 pr-3 text-right">Días trabajados</th>
+                        <th class="py-2 pr-3 text-right">Faltas</th>
+                        <th class="py-2 text-right">Total a pagar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fila in calculo.filas %}
+                    <tr class="border-b border-crema/60">
+                        <td class="py-2 pr-3 font-semibold">{{ fila.usuario.nombre }}</td>
+                        <td class="py-2 pr-3 text-xs">{{ Rol.ETIQUETAS[fila.usuario.rol] }}</td>
+                        <td class="py-2 pr-3 text-right">{{ fila.sueldo_diario | moneda }}</td>
+                        <td class="py-2 pr-3 text-right">{{ fila.dias_trabajados }}</td>
+                        <td class="py-2 pr-3 text-right {{ 'text-red-600 font-bold' if fila.faltas }}">{{ fila.faltas }}</td>
+                        <td class="py-2 text-right font-bold">{{ fila.total | moneda }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="bg-crema/50 font-bold">
+                        <td class="py-2 pr-3" colspan="5">TOTAL DEL PERIODO</td>
+                        <td class="py-2 text-right text-lg text-terracota">{{ calculo.total | moneda }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <form method="post" action="{{ url_for('rrhh.pagar_nomina') }}" class="mt-4">
+            <input type="hidden" name="desde" value="{{ desde.isoformat() }}">
+            <input type="hidden" name="hasta" value="{{ hasta.isoformat() }}">
+            <button type="submit"
+                    class="w-full bg-verde hover:bg-verde/80 text-white font-bold py-3 rounded-xl transition disabled:opacity-40"
+                    {{ 'disabled' if calculo.total <= 0 }}>
+                💰 Registrar pago de nómina ({{ calculo.total | moneda }})
+            </button>
+            <p class="text-xs text-cafe/60 mt-2">
+                Al registrar el pago se crea el gasto de nómina con su asiento contable.
+                Un mismo periodo no puede pagarse dos veces.
+            </p>
+        </form>
+    </section>
+
+    <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
+        <h2 class="font-clasica text-lg font-bold mb-4">Historial de pagos</h2>
+        {% if historial %}
+        <ul class="space-y-3">
+            {% for pago in historial %}
+            <li class="border border-cremaoscura rounded-xl p-3 bg-crema/30">
+                <div class="flex justify-between gap-2">
+                    <span class="text-sm font-semibold">
+                        {{ pago.desde.strftime('%d/%m/%Y') }} — {{ pago.hasta.strftime('%d/%m/%Y') }}
+                    </span>
+                    <span class="font-bold text-terracota">{{ pago.total | moneda }}</span>
+                </div>
+                <p class="text-xs text-cafe/60 mt-1">Pagada el {{ pago.fecha_pago | fecha_hora }}</p>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-sm text-cafe/60">Aún no se ha registrado ningún pago de nómina.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

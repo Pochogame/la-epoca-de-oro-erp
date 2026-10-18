@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block titulo %}Gastos operativos · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="font-clasica text-2xl font-bold">💸 Gastos operativos</h1>
+        <p class="text-sm text-cafe/70">Renta, gas, luz, agua, internet, limpieza y nómina — cada gasto genera su asiento contable</p>
+    </div>
+</div>
+
+<div class="grid lg:grid-cols-3 gap-5">
+    <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5 h-fit">
+        <h2 class="font-clasica text-lg font-bold mb-4">Registrar gasto</h2>
+        <form method="post" class="space-y-3">
+            <div>
+                <label class="block text-sm font-semibold mb-1">Categoría</label>
+                <select name="categoria" required class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                    {% for clave, datos in categorias.items() %}
+                    <option value="{{ clave }}">{{ datos[1] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Descripción</label>
+                <input type="text" name="descripcion" required maxlength="200"
+                       placeholder="Ej. Recibo CFE marzo"
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm font-semibold mb-1">Monto (MXN)</label>
+                    <input type="number" name="monto" step="0.01" min="0.01" required
+                           class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1">Estado</label>
+                    <select name="estado" class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                        <option value="PAGADO">Pagado</option>
+                        <option value="PENDIENTE">Pendiente (CxP)</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="w-full bg-terracota hover:bg-terracotaoscuro text-white font-bold py-3 rounded-xl transition">
+                💾 Guardar gasto
+            </button>
+        </form>
+    </section>
+
+    <section class="lg:col-span-2 bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
+        <h2 class="font-clasica text-lg font-bold mb-4">Historial de gastos</h2>
+        {% if gastos %}
+        <div class="overflow-x-auto max-h-[36rem] overflow-y-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-xs uppercase text-cafe/60 border-b border-cremaoscura">
+                        <th class="py-2 pr-3">Fecha</th>
+                        <th class="py-2 pr-3">Categoría</th>
+                        <th class="py-2 pr-3">Descripción</th>
+                        <th class="py-2 pr-3 text-right">Monto</th>
+                        <th class="py-2 pr-3">Estado</th>
+                        <th class="py-2"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for gasto in gastos %}
+                    <tr class="border-b border-crema/60">
+                        <td class="py-2 pr-3 whitespace-nowrap">{{ gasto.fecha | fecha_corta }}</td>
+                        <td class="py-2 pr-3">
+                            <span class="text-xs font-semibold bg-cremaoscura px-2 py-0.5 rounded-full">
+                                {{ CATEGORIAS_GASTO[gasto.categoria][1] }}
+                            </span>
+                        </td>
+                        <td class="py-2 pr-3">{{ gasto.descripcion }}</td>
+                        <td class="py-2 pr-3 text-right font-bold">{{ gasto.monto | moneda }}</td>
+                        <td class="py-2 pr-3">
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full
+                                {{ 'bg-verdementa text-verde' if gasto.estado == EstadoPago.PAGADO else 'bg-amber-100 text-amber-800' }}">
+                                {{ EstadoPago.ETIQUETAS[gasto.estado] }}
+                            </span>
+                        </td>
+                        <td class="py-2 text-right">
+                            {% if gasto.estado == EstadoPago.PENDIENTE %}
+                            <form method="post" action="{{ url_for('contabilidad.pagar_gasto', gasto_id=gasto.id) }}">
+                                <button type="submit" class="text-xs bg-verde hover:bg-verde/80 text-white font-bold px-3 py-1.5 rounded-lg">
+                                    Pagar
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-sm text-cafe/60">No hay gastos registrados todavía.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

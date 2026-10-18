@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block titulo %}Catálogo de insumos · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="font-clasica text-2xl font-bold">📋 Catálogo de insumos</h1>
+        <p class="text-sm text-cafe/70">Insumos disponibles para recetas y compras</p>
+    </div>
+    <a href="{{ url_for('inventario.index') }}" class="text-sm text-terracota font-bold hover:underline">← Volver al inventario</a>
+</div>
+
+<div class="grid lg:grid-cols-3 gap-5">
+    <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5 h-fit">
+        <h2 class="font-clasica text-lg font-bold mb-4">Nuevo insumo</h2>
+        <form method="post" class="space-y-3">
+            <div>
+                <label class="block text-sm font-semibold mb-1">Código</label>
+                <input type="text" name="codigo" required maxlength="30" placeholder="Ej. INS-PIM"
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Nombre</label>
+                <input type="text" name="nombre" required maxlength="120" placeholder="Ej. Pimiento morrón"
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm font-semibold mb-1">Unidad</label>
+                    <select name="unidad" class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                        <option value="kg">kg</option>
+                        <option value="L">L</option>
+                        <option value="pza">pza</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1">Costo unitario</label>
+                    <input type="number" name="costo_unitario" step="0.01" min="0" value="0"
+                           class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Stock mínimo (alerta)</label>
+                <input type="number" name="stock_minimo" step="0.001" min="0" value="0"
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <button type="submit" class="w-full bg-verde hover:bg-verde/80 text-white font-bold py-3 rounded-xl transition">
+                💾 Guardar insumo
+            </button>
+        </form>
+    </section>
+
+    <section class="lg:col-span-2 bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
+        <h2 class="font-clasica text-lg font-bold mb-4">Insumos registrados ({{ insumos | length }})</h2>
+        <div class="overflow-x-auto max-h-[36rem] overflow-y-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-xs uppercase text-cafe/60 border-b border-cremaoscura">
+                        <th class="py-2 pr-3">Código</th>
+                        <th class="py-2 pr-3">Nombre</th>
+                        <th class="py-2 pr-3">Unidad</th>
+                        <th class="py-2 pr-3 text-right">Costo unit.</th>
+                        <th class="py-2 pr-3 text-right">Stock total</th>
+                        <th class="py-2 pr-3 text-right">Mínimo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for insumo in insumos %}
+                    <tr class="border-b border-crema/60 {{ 'bg-red-50' if insumo.bajo_minimo }}">
+                        <td class="py-2 pr-3 font-mono text-xs">{{ insumo.codigo }}</td>
+                        <td class="py-2 pr-3 font-semibold">{{ insumo.nombre }}</td>
+                        <td class="py-2 pr-3">{{ insumo.unidad }}</td>
+                        <td class="py-2 pr-3 text-right">{{ insumo.costo_unitario | moneda }}</td>
+                        <td class="py-2 pr-3 text-right font-semibold">{{ insumo.cantidad_total | cantidad }}</td>
+                        <td class="py-2 pr-3 text-right text-cafe/60">{{ insumo.stock_minimo | cantidad }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+{% endblock %}

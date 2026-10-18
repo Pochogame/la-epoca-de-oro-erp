@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block titulo %}Entrada de insumos · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="max-w-2xl mx-auto">
+    <a href="{{ url_for('inventario.index') }}" class="text-sm text-terracota font-bold hover:underline">← Volver al inventario</a>
+    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-6 mt-2">
+        <h1 class="font-clasica text-2xl font-bold mb-1">➕ Entrada de insumos (compra)</h1>
+        <p class="text-sm text-cafe/70 mb-5">
+            Registra la mercancía recibida. Se genera automáticamente el asiento contable
+            (Inventario contra Caja o Cuentas por Pagar).
+        </p>
+
+        <form method="post" class="grid sm:grid-cols-2 gap-4">
+            <div class="sm:col-span-2">
+                <label class="block text-sm font-semibold mb-1">Insumo</label>
+                <select name="insumo_id" required class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                    {% for insumo in insumos %}
+                    <option value="{{ insumo.id }}">{{ insumo.codigo }} · {{ insumo.nombre }} ({{ insumo.unidad }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Cantidad recibida</label>
+                <input type="number" name="cantidad" step="0.001" min="0.001" required
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Costo unitario (MXN)</label>
+                <input type="number" name="costo_unitario" step="0.01" min="0" required
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Almacén destino</label>
+                <select name="almacen_destino_id" required class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                    {% for almacen in almacenes %}
+                    <option value="{{ almacen.id }}">{{ almacen.codigo }} · {{ almacen.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Estado de pago</label>
+                <select name="estado_pago" class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                    <option value="PAGADO">Pagado (sale de caja)</option>
+                    <option value="PENDIENTE">Pendiente (cuentas por pagar)</option>
+                </select>
+            </div>
+            <div class="sm:col-span-2">
+                <label class="block text-sm font-semibold mb-1">Referencia / proveedor (opcional)</label>
+                <input type="text" name="referencia" maxlength="50"
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40"
+                       placeholder="Ej. Proveedor La Central, factura 1234">
+            </div>
+            <div class="sm:col-span-2">
+                <button type="submit" class="w-full bg-verde hover:bg-verde/80 text-white font-bold py-3 rounded-xl transition">
+                    💾 Registrar entrada
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block titulo %}Dashboard · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="flex items-center justify-between mb-5 flex-wrap gap-2">
+    <div>
+        <h1 class="font-clasica text-2xl font-bold">📊 Panel General</h1>
+        <p class="text-sm text-cafe/70">Resumen operativo y financiero de hoy · {{ now.strftime('%d/%m/%Y %H:%M') }}</p>
+    </div>
+    <div class="flex gap-2 text-sm">
+        <a href="{{ url_for('pos.index') }}" class="bg-terracota hover:bg-terracotaoscuro text-white px-4 py-2 rounded-xl font-semibold">📋 Nuevo pedido</a>
+        <a href="{{ url_for('cocina.index') }}" class="bg-cafe hover:bg-cafeoscuro text-white px-4 py-2 rounded-xl font-semibold">🍳 Ver comandas</a>
+    </div>
+</div>
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+        <p class="text-xs uppercase tracking-wide text-cafe/60 font-semibold">Ventas de hoy</p>
+        <p class="text-2xl font-bold text-terracota mt-1">{{ total_hoy | moneda }}</p>
+        <p class="text-xs text-cafe/60">{{ tickets_hoy }} ticket(s)</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+        <p class="text-xs uppercase tracking-wide text-cafe/60 font-semibold">Utilidad neta del mes</p>
+        <p class="text-2xl font-bold {{ 'text-verde' if resultado_mes.utilidad_neta >= 0 else 'text-red-600' }} mt-1">
+            {{ resultado_mes.utilidad_neta | moneda }}
+        </p>
+        <p class="text-xs text-cafe/60">Margen {{ resultado_mes.margen_neto }}%</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+        <p class="text-xs uppercase tracking-wide text-cafe/60 font-semibold">Efectivo disponible</p>
+        <p class="text-2xl font-bold text-cafe mt-1">{{ flujo.efectivo_disponible | moneda }}</p>
+        <p class="text-xs text-cafe/60">Caja {{ flujo.caja | moneda }} · Bancos {{ flujo.bancos | moneda }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+        <p class="text-xs uppercase tracking-wide text-cafe/60 font-semibold">Cuentas por pagar</p>
+        <p class="text-2xl font-bold text-dorado mt-1">{{ flujo.cuentas_por_pagar | moneda }}</p>
+        <p class="text-xs text-cafe/60">
+            {{ flujo.gastos_pendientes | length }} gasto(s) · {{ flujo.compras_pendientes | length }} compra(s)
+        </p>
+    </div>
+</div>
+
+<div class="grid lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2 bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
+        <h2 class="font-clasica text-lg font-bold mb-3">🧾 Últimas ventas</h2>
+        {% if ultimas_ventas %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-xs uppercase text-cafe/60 border-b border-cremaoscura">
+                        <th class="py-2 pr-3">Folio</th>
+                        <th class="py-2 pr-3">Fecha</th>
+                        <th class="py-2 pr-3">Turno</th>
+                        <th class="py-2 pr-3">Mesero</th>
+                        <th class="py-2 pr-3">Método</th>
+                        <th class="py-2 text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for venta in ultimas_ventas %}
+                    <tr class="border-b border-crema/60">
+                        <td class="py-2 pr-3 font-semibold">{{ venta.folio }}</td>
+                        <td class="py-2 pr-3">{{ venta.fecha | fecha_hora }}</td>
+                        <td class="py-2 pr-3">{{ Turno.ICONOS[venta.turno] }} {{ Turno.ETIQUETAS[venta.turno] }}</td>
+                        <td class="py-2 pr-3">{{ venta.mesero.nombre }}</td>
+                        <td class="py-2 pr-3">{{ MetodoPago.ETIQUETAS[venta.metodo_pago] }}</td>
+                        <td class="py-2 text-right font-bold">{{ venta.total | moneda }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-sm text-cafe/60">Todavía no hay ventas registradas.</p>
+        {% endif %}
+    </div>
+
+    <div class="space-y-5">
+        <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
+            <h2 class="font-clasica text-lg font-bold mb-3">⚠️ Alertas de stock mínimo</h2>
+            {% if alertas %}
+            <ul class="space-y-2 text-sm">
+                {% for insumo in alertas[:6] %}
+                <li class="flex justify-between gap-2">
+                    <span>{{ insumo.nombre }}</span>
+                    <span class="text-red-600 font-semibold">{{ insumo.cantidad_total | cantidad }} {{ insumo.unidad }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            <a href="{{ url_for('inventario.index') }}" class="inline-block mt-3 text-xs text-terracota font-bold hover:underline">Ver inventario →</a>
+            {% else %}
+            <p class="text-sm text-verde">✅ Todos los insumos tienen stock suficiente.</p>
+            {% endif %}
+        </div>
+
+        <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
+            <h2 class="font-clasica text-lg font-bold mb-3">🍳 Comandas activas</h2>
+            {% if comandas_activas %}
+            <ul class="space-y-2 text-sm">
+                {% for comanda in comandas_activas[:6] %}
+                <li class="flex justify-between gap-2">
+                    <span>{{ comanda.folio }} · {{ comanda.venta.mesero.nombre }}</span>
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full
+                        {{ 'bg-amber-100 text-amber-800' if comanda.estado == EstadoComanda.EN_PREPARACION else 'bg-verdementa text-verde' }}">
+                        {{ EstadoComanda.ETIQUETAS[comanda.estado] }}
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="text-sm text-cafe/60">Sin comandas pendientes.</p>
+        {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

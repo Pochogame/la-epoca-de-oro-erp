@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block titulo %}Mermas · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="font-clasica text-2xl font-bold">🗑️ Registro de mermas</h1>
+        <p class="text-sm text-cafe/70">Desperdicios con motivo: se descuentan del inventario y se reflejan en contabilidad</p>
+    </div>
+    <a href="{{ url_for('inventario.index') }}" class="text-sm text-terracota font-bold hover:underline">← Volver al inventario</a>
+</div>
+
+<div class="grid lg:grid-cols-2 gap-5">
+    <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
+        <h2 class="font-clasica text-lg font-bold mb-4">Nueva merma</h2>
+        <form method="post" class="space-y-4">
+            <div>
+                <label class="block text-sm font-semibold mb-1">Insumo</label>
+                <select name="insumo_id" required class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                    {% for insumo in insumos %}
+                    <option value="{{ insumo.id }}">{{ insumo.codigo }} · {{ insumo.nombre }} ({{ insumo.unidad }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm font-semibold mb-1">Almacén</label>
+                    <select name="almacen_id" required class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                        {% for almacen in almacenes %}
+                        <option value="{{ almacen.id }}">{{ almacen.codigo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1">Cantidad</label>
+                    <input type="number" name="cantidad" step="0.001" min="0.001" required
+                           class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Motivo</label>
+                <select name="motivo" required class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                    {% for motivo in motivos %}
+                    <option value="{{ motivo }}">{{ motivo }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Comentario (opcional)</label>
+                <textarea name="comentario" rows="2" maxlength="250"
+                          class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40"></textarea>
+            </div>
+            <button type="submit" class="w-full bg-terracota hover:bg-terracotaoscuro text-white font-bold py-3 rounded-xl transition">
+                🗑️ Registrar merma
+            </button>
+        </form>
+    </section>
+
+    <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
+        <h2 class="font-clasica text-lg font-bold mb-4">Historial reciente</h2>
+        {% if historial %}
+        <div class="overflow-x-auto max-h-[32rem] overflow-y-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-xs uppercase text-cafe/60 border-b border-cremaoscura">
+                        <th class="py-2 pr-3">Fecha</th>
+                        <th class="py-2 pr-3">Insumo</th>
+                        <th class="py-2 pr-3 text-right">Cantidad</th>
+                        <th class="py-2 pr-3">Motivo</th>
+                        <th class="py-2 text-right">Costo est.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for merma in historial %}
+                    <tr class="border-b border-crema/60 align-top">
+                        <td class="py-2 pr-3 whitespace-nowrap">{{ merma.fecha | fecha_hora }}</td>
+                        <td class="py-2 pr-3 font-semibold">{{ merma.insumo.nombre }}</td>
+                        <td class="py-2 pr-3 text-right">{{ merma.cantidad | cantidad }} {{ merma.insumo.unidad }}</td>
+                        <td class="py-2 pr-3">
+                            <span class="text-xs bg-red-50 text-red-700 px-2 py-0.5 rounded-full font-semibold">{{ merma.motivo }}</span>
+                            {% if merma.comentario %}
+                            <span class="block text-[11px] text-cafe/60 mt-0.5">{{ merma.comentario }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2 text-right font-semibold">{{ merma.costo_estimado | moneda }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-sm text-cafe/60">Aún no hay mermas registradas.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

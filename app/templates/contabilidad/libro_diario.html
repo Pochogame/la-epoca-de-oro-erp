@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block titulo %}Libro Diario · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+    <div>
+        <h1 class="font-clasica text-2xl font-bold">📒 Libro Diario</h1>
+        <p class="text-sm text-cafe/70">Asientos generados automáticamente por ventas, compras, gastos y mermas</p>
+    </div>
+    <form method="get" class="flex items-end gap-2 bg-white border border-cremaoscura rounded-xl p-2 shadow-sm">
+        <div>
+            <label class="block text-[10px] font-bold uppercase text-cafe/60">Desde</label>
+            <input type="date" name="desde" value="{{ desde.isoformat() }}"
+                   class="border border-cremaoscura rounded-lg px-2 py-1.5 bg-crema/40 text-sm">
+        </div>
+        <div>
+            <label class="block text-[10px] font-bold uppercase text-cafe/60">Hasta</label>
+            <input type="date" name="hasta" value="{{ hasta.isoformat() }}"
+                   class="border border-cremaoscura rounded-lg px-2 py-1.5 bg-crema/40 text-sm">
+        </div>
+        <button type="submit" class="bg-cafe hover:bg-cafeoscuro text-white text-sm font-bold px-4 py-2 rounded-lg">
+            Filtrar
+        </button>
+    </form>
+</div>
+
+<div class="flex gap-3 mb-4 flex-wrap">
+    <span class="bg-white border border-cremaoscura rounded-xl px-4 py-2 text-sm">
+        Asientos: <b>{{ asientos | length }}</b>
+    </span>
+    <span class="bg-white border border-cremaoscura rounded-xl px-4 py-2 text-sm">
+        Total debe: <b>{{ total_debe | moneda }}</b>
+    </span>
+    <span class="bg-white border border-cremaoscura rounded-xl px-4 py-2 text-sm">
+        Total haber: <b>{{ total_haber | moneda }}</b>
+    </span>
+    <span class="rounded-xl px-4 py-2 text-sm font-bold {{ 'bg-verdementa text-verde' if total_debe == total_haber else 'bg-red-50 text-red-700' }}">
+        {{ '✅ Periodo cuadrado' if total_debe == total_haber else '⚠️ Periodo descuadrado' }}
+    </span>
+</div>
+
+{% if asientos %}
+<div class="space-y-4">
+    {% for asiento in asientos %}
+    <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm overflow-hidden">
+        <header class="flex items-center justify-between gap-3 px-4 py-2.5 bg-cremaoscura/60 flex-wrap">
+            <div class="flex items-center gap-3">
+                <span class="font-mono text-xs font-bold bg-cafe text-crema px-2 py-1 rounded-lg">{{ asiento.folio }}</span>
+                <span class="text-sm font-semibold">{{ asiento.concepto }}</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-cafe/70">
+                <span class="bg-white px-2 py-0.5 rounded-full font-semibold">{{ asiento.origen }}</span>
+                <span>{{ asiento.referencia }}</span>
+                <span>{{ asiento.fecha | fecha_hora }}</span>
+            </div>
+        </header>
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-xs uppercase text-cafe/60 border-b border-cremaoscura">
+                    <th class="py-1.5 px-4">Cuenta</th>
+                    <th class="py-1.5 px-4 text-right">Debe</th>
+                    <th class="py-1.5 px-4 text-right">Haber</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for linea in asiento.lineas %}
+                <tr class="border-b border-crema/60">
+                    <td class="py-1.5 px-4">
+                        <span class="font-mono text-xs text-cafe/60">{{ linea.cuenta.codigo }}</span>
+                        {{ linea.cuenta.nombre }}
+                    </td>
+                    <td class="py-1.5 px-4 text-right">{{ linea.debe | moneda if linea.debe else '' }}</td>
+                    <td class="py-1.5 px-4 text-right">{{ linea.haber | moneda if linea.haber else '' }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="bg-crema/40 font-bold">
+                    <td class="py-1.5 px-4 text-xs uppercase">Totales</td>
+                    <td class="py-1.5 px-4 text-right">{{ asiento.total_debe | moneda }}</td>
+                    <td class="py-1.5 px-4 text-right">{{ asiento.total_haber | moneda }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-sm text-cafe/60 bg-white border border-cremaoscura rounded-2xl p-6 text-center">
+    No hay asientos contables en el periodo seleccionado.
+</p>
+{% endif %}
+{% endblock %}

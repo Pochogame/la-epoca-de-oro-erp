@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block titulo %}La Época de Oro ERP{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        crema: '#FAF3E6',
+                        cremaoscura: '#F1E4CC',
+                        terracota: '#B85C38',
+                        terracotaclaro: '#D07A52',
+                        terracotaoscuro: '#8F4527',
+                        cafe: '#5D4037',
+                        cafeoscuro: '#3E2723',
+                        dorado: '#D9A441',
+                        verde: '#4E6E58',
+                        verdementa: '#E4EFE7',
+                    },
+                    fontFamily: {
+                        clasica: ['Georgia', 'Times New Roman', 'serif'],
+                    },
+                },
+            },
+        };
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/estilos.css') }}">
+</head>
+<body class="bg-crema text-cafeoscuro min-h-screen flex flex-col">
+
+{% if g.usuario %}
+<header class="bg-cafe shadow-lg no-print">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="flex items-center justify-between py-3 gap-4">
+            <a href="{{ url_for('dashboard.index') }}" class="flex items-center gap-3 shrink-0">
+                <span class="text-3xl">🎬</span>
+                <span class="leading-tight">
+                    <span class="block font-clasica text-xl text-dorado font-bold tracking-wide">La Época de Oro</span>
+                    <span class="block text-xs text-crema/80 tracking-widest uppercase">ERP · Café, Guisados y Nostalgia</span>
+                </span>
+            </a>
+            <div class="flex items-center gap-3">
+                <div class="text-right hidden sm:block">
+                    <p class="text-sm text-crema font-semibold">{{ g.usuario.nombre }}</p>
+                    <p class="text-xs text-dorado">{{ Rol.ETIQUETAS[g.usuario.rol] }}</p>
+                </div>
+                <form method="post" action="{{ url_for('auth.logout') }}">
+                    <button type="submit"
+                            class="text-xs bg-terracota hover:bg-terracotaoscuro text-white px-3 py-2 rounded-lg transition">
+                        🔒 Cerrar sesión
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {% set es_admin = g.usuario.rol == Rol.ADMIN %}
+        {% set es_chef = g.usuario.rol == Rol.CHEF_SUPERVISOR %}
+        {% set es_mesero = g.usuario.rol == Rol.MESERO_POS %}
+        <nav class="flex flex-wrap gap-x-1 gap-y-1 pb-2 text-sm">
+            {% if es_admin %}
+            <a href="{{ url_for('dashboard.index') }}"
+               class="px-3 py-1.5 rounded-lg {{ 'bg-terracota text-white' if request.endpoint == 'dashboard.index' else 'text-crema/90 hover:bg-white/10' }}">
+                📊 Dashboard</a>
+            {% endif %}
+            {% if es_mesero or es_admin %}
+            <a href="{{ url_for('pos.index') }}"
+               class="px-3 py-1.5 rounded-lg {{ 'bg-terracota text-white' if request.blueprint == 'pos' else 'text-crema/90 hover:bg-white/10' }}">
+                📋 Punto de Venta</a>
+            {% endif %}
+            {% if es_chef or es_admin %}
+            <a href="{{ url_for('cocina.index') }}"
+               class="px-3 py-1.5 rounded-lg {{ 'bg-terracota text-white' if request.blueprint == 'cocina' else 'text-crema/90 hover:bg-white/10' }}">
+                🍳 Comandas</a>
+            <a href="{{ url_for('inventario.index') }}"
+               class="px-3 py-1.5 rounded-lg {{ 'bg-terracota text-white' if request.blueprint == 'inventario' else 'text-crema/90 hover:bg-white/10' }}">
+                📦 Inventario</a>
+            <a href="{{ url_for('recetas.index') }}"
+               class="px-3 py-1.5 rounded-lg {{ 'bg-terracota text-white' if request.blueprint == 'recetas' else 'text-crema/90 hover:bg-white/10' }}">
+                📖 Recetas (BOM)</a>
+            {% endif %}
+            {% if es_admin %}
+            <span class="mx-1 my-1 border-l border-crema/20"></span>
+            <a href="{{ url_for('contabilidad.estado_resultados') }}"
+               class="px-3 py-1.5 rounded-lg {{ 'bg-terracota text-white' if request.endpoint == 'contabilidad.estado_resultados' else 'text-crema/90 hover:bg-white/10' }}">
+                📈 Estado de Resultados</a>
+            <a href="{{ url_for('contabilidad.libro_diario') }}"
+               class="px-3 py-1.5 rounded-lg {{ 'bg-terracota text-white' if request.endpoint == 'contabilidad.libro_diario' else 'text-crema/90 hover:bg-white/10' }}">
+                📒 Libro Diario</a>
+            <a href="{{ url_for('contabilidad.gastos') }}"
+               class="px-3 py-1.5 rounded-lg {{ 'bg-terracota text-white' if request.endpoint == 'contabilidad.gastos' else 'text-crema/90 hover:bg-white/10' }}">
+                💸 Gastos</a>
+            <a href="{{ url_for('contabilidad.flujo_caja') }}"
+               class="px-3 py-1.5 rounded-lg {{ 'bg-terracota text-white' if request.endpoint == 'contabilidad.flujo_caja' else 'text-crema/90 hover:bg-white/10' }}">
+                🔄 Flujo de Caja</a>
+            <a href="{{ url_for('rrhh.asistencias') }}"
+               class="px-3 py-1.5 rounded-lg {{ 'bg-terracota text-white' if request.blueprint == 'rrhh' else 'text-crema/90 hover:bg-white/10' }}">
+                👥 RRHH y Nómina</a>
+            <a href="{{ url_for('admin.usuarios') }}"
+               class="px-3 py-1.5 rounded-lg {{ 'bg-terracota text-white' if request.blueprint == 'admin' else 'text-crema/90 hover:bg-white/10' }}">
+                🔑 Usuarios</a>
+            {% endif %}
+        </nav>
+    </div>
+</header>
+{% endif %}
+
+<main class="flex-1 w-full max-w-7xl mx-auto px-4 py-6">
+    {% with mensajes = get_flashed_messages(with_categories=true) %}
+        {% if mensajes %}
+        <div class="space-y-2 mb-4 no-print">
+            {% for categoria, mensaje in mensajes %}
+            <div class="px-4 py-3 rounded-xl border shadow-sm text-sm font-medium
+                        {{ 'bg-verdementa border-verde text-verde' if categoria == 'exito' else 'bg-red-50 border-red-400 text-red-700' }}">
+                {{ '✅' if categoria == 'exito' else '⚠️' }} {{ mensaje }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    {% block contenido %}{% endblock %}
+</main>
+
+<footer class="no-print text-center text-xs text-cafe/60 py-4">
+    La Época de Oro ERP · Café, Guisados y Nostalgia · {{ now.year if now else '' }}
+</footer>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

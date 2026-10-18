@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block titulo %}Estado de Resultados · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+    <div>
+        <h1 class="font-clasica text-2xl font-bold">📈 Estado de Resultados (P&L)</h1>
+        <p class="text-sm text-cafe/70">Cifras reales calculadas de las ventas, recetas (BOM), mermas y gastos del periodo</p>
+    </div>
+    <form method="get" class="flex items-end gap-2 bg-white border border-cremaoscura rounded-xl p-2 shadow-sm">
+        <div>
+            <label class="block text-[10px] font-bold uppercase text-cafe/60">Desde</label>
+            <input type="date" name="desde" value="{{ desde.isoformat() }}"
+                   class="border border-cremaoscura rounded-lg px-2 py-1.5 bg-crema/40 text-sm">
+        </div>
+        <div>
+            <label class="block text-[10px] font-bold uppercase text-cafe/60">Hasta</label>
+            <input type="date" name="hasta" value="{{ hasta.isoformat() }}"
+                   class="border border-cremaoscura rounded-lg px-2 py-1.5 bg-crema/40 text-sm">
+        </div>
+        <button type="submit" class="bg-cafe hover:bg-cafeoscuro text-white text-sm font-bold px-4 py-2 rounded-lg">
+            Filtrar
+        </button>
+    </form>
+</div>
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+        <p class="text-xs uppercase tracking-wide text-cafe/60 font-semibold">Ventas totales</p>
+        <p class="text-2xl font-bold text-terracota mt-1">{{ r.ventas_total | moneda }}</p>
+        <p class="text-xs text-cafe/60">{{ r.num_ventas }} tickets · promedio {{ r.ticket_promedio | moneda }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+        <p class="text-xs uppercase tracking-wide text-cafe/60 font-semibold">Utilidad bruta</p>
+        <p class="text-2xl font-bold text-cafe mt-1">{{ r.utilidad_bruta | moneda }}</p>
+        <p class="text-xs text-cafe/60">Margen {{ r.margen_bruto }}%</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+        <p class="text-xs uppercase tracking-wide text-cafe/60 font-semibold">Utilidad neta</p>
+        <p class="text-2xl font-bold {{ 'text-verde' if r.utilidad_neta >= 0 else 'text-red-600' }} mt-1">
+            {{ r.utilidad_neta | moneda }}
+        </p>
+        <p class="text-xs text-cafe/60">Margen {{ r.margen_neto }}%</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+        <p class="text-xs uppercase tracking-wide text-cafe/60 font-semibold">Desglose por turno</p>
+        <p class="text-sm mt-1">☀️ Mañana: <b>{{ r.ventas_manana | moneda }}</b></p>
+        <p class="text-sm">🌙 Tarde: <b>{{ r.ventas_tarde | moneda }}</b></p>
+    </div>
+</div>
+
+<section class="bg-white rounded-2xl border border-cremaoscura shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="text-left text-xs uppercase text-cafe/60 border-b border-cremaoscura bg-cremaoscura/40">
+                <th class="py-2.5 px-5">Concepto financiero</th>
+                <th class="py-2.5 px-5 text-right">Monto (MXN)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="border-b border-crema/60">
+                <td class="py-2.5 px-5">(+) Ventas turno Mañana</td>
+                <td class="py-2.5 px-5 text-right">{{ r.ventas_manana | moneda }}</td>
+            </tr>
+            <tr class="border-b border-crema/60">
+                <td class="py-2.5 px-5">(+) Ventas turno Tarde</td>
+                <td class="py-2.5 px-5 text-right">{{ r.ventas_tarde | moneda }}</td>
+            </tr>
+            <tr class="border-b border-crema/60 font-bold bg-crema/40">
+                <td class="py-2.5 px-5">(=) Ventas totales del periodo</td>
+                <td class="py-2.5 px-5 text-right">{{ r.ventas_total | moneda }}</td>
+            </tr>
+            <tr class="border-b border-crema/60">
+                <td class="py-2.5 px-5">(−) Costo de ventas (descuento de insumos por recetas/BOM)</td>
+                <td class="py-2.5 px-5 text-right text-red-600">−{{ r.costo_ventas | moneda }}</td>
+            </tr>
+            <tr class="border-b-2 border-cafe/20 font-bold bg-verdementa/60">
+                <td class="py-2.5 px-5">(=) UTILIDAD BRUTA</td>
+                <td class="py-2.5 px-5 text-right">{{ r.utilidad_bruta | moneda }}</td>
+            </tr>
+            <tr class="border-b border-crema/60">
+                <td class="py-2.5 px-5">(−) Mermas y desperdicios</td>
+                <td class="py-2.5 px-5 text-right text-red-600">−{{ r.mermas | moneda }}</td>
+            </tr>
+            <tr class="border-b border-crema/60">
+                <td class="py-2.5 px-5">(−) Nómina del personal</td>
+                <td class="py-2.5 px-5 text-right text-red-600">−{{ r.nomina | moneda }}</td>
+            </tr>
+            {% for linea in r.lineas_gastos %}
+            <tr class="border-b border-crema/60">
+                <td class="py-2.5 px-5">(−) {{ linea.concepto }}</td>
+                <td class="py-2.5 px-5 text-right text-red-600">−{{ linea.monto | moneda }}</td>
+            </tr>
+            {% endfor %}
+            {% if not r.lineas_gastos %}
+            <tr class="border-b border-crema/60">
+                <td class="py-2.5 px-5 text-cafe/60">(−) Gastos operativos fijos</td>
+                <td class="py-2.5 px-5 text-right text-cafe/60">{{ 0 | moneda }}</td>
+            </tr>
+            {% endif %}
+            <tr class="border-b border-crema/60 font-semibold bg-crema/30">
+                <td class="py-2.5 px-5">Total de gastos operativos (sin nómina ni mermas)</td>
+                <td class="py-2.5 px-5 text-right">{{ r.total_gastos_operativos | moneda }}</td>
+            </tr>
+            <tr class="font-bold text-lg {{ 'bg-verdementa text-verde' if r.utilidad_neta >= 0 else 'bg-red-50 text-red-700' }}">
+                <td class="py-3 px-5">(=) UTILIDAD NETA OPERATIVA DEL PERIODO</td>
+                <td class="py-3 px-5 text-right">{{ r.utilidad_neta | moneda }}</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+{% endblock %}

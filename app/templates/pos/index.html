@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block titulo %}Punto de Venta · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+    <div>
+        <h1 class="font-clasica text-2xl font-bold">📋 Toma de pedidos (POS)</h1>
+        <p class="text-sm text-cafe/70">Mesero: <span class="font-semibold">{{ g.usuario.nombre }}</span></p>
+    </div>
+    <div class="flex items-center gap-2 bg-white rounded-xl border border-cremaoscura p-1.5 shadow-sm">
+        <span class="text-xs font-bold uppercase text-cafe/60 px-2">Turno:</span>
+        {% for t in [Turno.MANANA, Turno.TARDE] %}
+        <a href="{{ url_for('pos.index', turno=t) }}"
+           class="px-4 py-2 rounded-lg text-sm font-bold transition
+                  {{ 'bg-terracota text-white shadow' if turno == t else 'text-cafe hover:bg-crema' }}">
+            {{ Turno.ICONOS[t] }} {{ Turno.ETIQUETAS[t] }}
+        </a>
+        {% endfor %}
+        {% if turno != turno_sugerido %}
+        <span class="text-[10px] text-cafe/50 px-1">(turno sugerido: {{ Turno.ICONOS[turno_sugerido] }})</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="grid lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2 space-y-5">
+        {% for grupo in catalogo %}
+        <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+            <h2 class="font-clasica text-lg font-bold mb-3 pb-2 border-b border-cremaoscura">{{ grupo.categoria }}</h2>
+            <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                {% for producto in grupo.productos %}
+                <button type="button"
+                        class="boton-producto text-left rounded-xl border border-cremaoscura bg-crema/40 hover:bg-crema hover:border-terracota p-3 transition shadow-sm"
+                        data-id="{{ producto.id }}"
+                        data-nombre="{{ producto.nombre }}"
+                        data-precio="{{ producto.precio }}"
+                        data-guisado="{{ '1' if producto.requiere_guisado else '0' }}">
+                    <p class="font-semibold text-sm leading-tight">{{ producto.nombre }}</p>
+                    <div class="flex items-center justify-between mt-2">
+                        <span class="text-terracota font-bold">{{ producto.precio | moneda }}</span>
+                        {% if producto.requiere_guisado %}
+                        <span class="text-[10px] bg-dorado/20 text-cafe px-2 py-0.5 rounded-full font-bold">🍲 guisado</span>
+                        {% endif %}
+                    </div>
+                </button>
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+
+        <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+            <h2 class="font-clasica text-lg font-bold mb-3">🧾 Mis pedidos recientes</h2>
+            {% if pedidos %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-xs uppercase text-cafe/60 border-b border-cremaoscura">
+                            <th class="py-2 pr-3">Folio</th>
+                            <th class="py-2 pr-3">Hora</th>
+                            <th class="py-2 pr-3">Tipo</th>
+                            <th class="py-2 pr-3">Total</th>
+                            <th class="py-2 pr-3">Comanda</th>
+                            <th class="py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for venta in pedidos %}
+                        <tr class="border-b border-crema/60">
+                            <td class="py-2 pr-3 font-semibold">{{ venta.folio }}</td>
+                            <td class="py-2 pr-3">{{ venta.fecha | fecha_hora }}</td>
+                            <td class="py-2 pr-3">{{ TipoOrden.ICONOS[venta.tipo_orden] }} {{ TipoOrden.ETIQUETAS[venta.tipo_orden] }}</td>
+                            <td class="py-2 pr-3 font-bold">{{ venta.total | moneda }}</td>
+                            <td class="py-2 pr-3">
+                                {% if venta.comanda %}
+                                <span class="text-xs font-semibold px-2 py-0.5 rounded-full
+                                    {{ 'bg-amber-100 text-amber-800' if venta.comanda.estado == EstadoComanda.EN_PREPARACION }}
+                                    {{ 'bg-blue-100 text-blue-800' if venta.comanda.estado == EstadoComanda.LISTA }}
+                                    {{ 'bg-verdementa text-verde' if venta.comanda.estado == EstadoComanda.ENTREGADA }}">
+                                    {{ EstadoComanda.ETIQUETAS[venta.comanda.estado] }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="py-2 text-right">
+                                <a href="{{ url_for('pos.ticket', venta_id=venta.id) }}"
+                                   class="text-xs text-terracota font-bold hover:underline">Ticket</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-sm text-cafe/60">Aún no has registrado pedidos.</p>
+            {% endif %}
+        </section>
+    </div>
+
+    <aside class="lg:sticky lg:top-4 h-fit">
+        <div class="bg-white rounded-2xl border border-cremaoscura shadow-lg p-4">
+            <h2 class="font-clasica text-lg font-bold mb-2">🛒 Pedido en curso</h2>
+
+            <div id="carrito-vacio" class="text-sm text-cafe/60 py-6 text-center">
+                Toca un producto del menú para agregarlo.
+            </div>
+
+            <table class="w-full text-sm hidden" id="tabla-carrito">
+                <thead>
+                    <tr class="text-left text-xs uppercase text-cafe/60 border-b border-cremaoscura">
+                        <th class="py-1.5">Producto</th>
+                        <th class="py-1.5 text-center">Cant.</th>
+                        <th class="py-1.5 text-right">Importe</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpo-carrito"></tbody>
+            </table>
+
+            <div class="flex items-center justify-between border-t border-cremaoscura mt-3 pt-3">
+                <span class="font-bold">Total</span>
+                <span id="total-carrito" class="text-xl font-bold text-terracota">$0.00</span>
+            </div>
+
+            <form method="post" action="{{ url_for('pos.confirmar') }}" id="form-pedido" class="mt-4 space-y-3">
+                <input type="hidden" name="turno" value="{{ turno }}">
+                <input type="hidden" name="items_json" id="items_json" value="[]">
+
+                <div>
+                    <p class="text-xs font-bold uppercase text-cafe/60 mb-1">Modalidad</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        {% for tipo in [TipoOrden.AQUI, TipoOrden.LLEVAR] %}
+                        <label class="flex items-center gap-2 border border-cremaoscura rounded-lg px-3 py-2 text-sm cursor-pointer bg-crema/40 hover:bg-crema">
+                            <input type="radio" name="tipo_orden" value="{{ tipo }}" class="accent-terracota"
+                                   {{ 'checked' if loop.first }}>
+                            {{ TipoOrden.ICONOS[tipo] }} {{ TipoOrden.ETIQUETAS[tipo] }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold uppercase text-cafe/60" for="metodo_pago">Método de pago</label>
+                    <select name="metodo_pago" id="metodo_pago"
+                            class="w-full border border-cremaoscura rounded-lg px-3 py-2 mt-1 bg-crema/40">
+                        {% for metodo in [MetodoPago.EFECTIVO, MetodoPago.TARJETA, MetodoPago.TRANSFERENCIA] %}
+                        <option value="{{ metodo }}">{{ MetodoPago.ETIQUETAS[metodo] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <button type="submit" id="boton-confirmar"
+                        class="w-full bg-verde hover:bg-verde/80 text-white font-bold py-3 rounded-xl transition shadow disabled:opacity-40 disabled:cursor-not-allowed"
+                        disabled>
+                    🚀 Enviar a cocina y cobrar
+                </button>
+            </form>
+        </div>
+    </aside>
+</div>
+
+<div id="modal-guisado" class="hidden fixed inset-0 bg-cafeoscuro/60 z-50 items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-5 animar-entrada">
+        <h3 class="font-clasica text-xl font-bold mb-1">🍲 Elige el guisado</h3>
+        <p class="text-sm text-cafe/70 mb-4">
+            Producto: <span id="modal-producto" class="font-semibold text-terracota"></span>
+        </p>
+        <div id="modal-opciones" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
+        <button type="button" id="modal-cancelar"
+                class="mt-4 w-full border border-cremaoscura text-cafe font-semibold py-2 rounded-xl hover:bg-crema transition">
+            Cancelar
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.GUISADOS_DISPONIBLES = {{ guisados | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/pos.js') }}"></script>
+{% endblock %}

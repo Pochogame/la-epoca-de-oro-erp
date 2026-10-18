@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block titulo %}Comandas en cocina · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<meta http-equiv="refresh" content="30">
+<div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="font-clasica text-2xl font-bold">🍳 Pantalla de cocina</h1>
+        <p class="text-sm text-cafe/70">Comandas activas · la pantalla se actualiza automáticamente cada 30 segundos</p>
+    </div>
+    <a href="{{ url_for('cocina.index') }}" class="text-sm bg-white border border-cremaoscura px-4 py-2 rounded-xl font-bold hover:bg-crema transition">
+        🔄 Actualizar ahora
+    </a>
+</div>
+
+{% if comandas %}
+<div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+    {% for comanda in comandas %}
+    <div class="rounded-2xl border-2 shadow-sm p-4 animar-entrada
+                {{ 'border-amber-300 bg-amber-50' if comanda.estado == EstadoComanda.EN_PREPARACION else 'border-verde bg-verdementa' }}">
+        <div class="flex items-start justify-between gap-2">
+            <div>
+                <h2 class="font-clasica text-lg font-bold">{{ comanda.folio }}</h2>
+                <p class="text-xs text-cafe/70">
+                    {{ TipoOrden.ICONOS[comanda.tipo_orden] }} {{ TipoOrden.ETIQUETAS[comanda.tipo_orden] }}
+                    · {{ Turno.ICONOS[comanda.turno] }} {{ Turno.ETIQUETAS[comanda.turno] }}
+                </p>
+                <p class="text-xs text-cafe/70 mt-0.5">
+                    🕐 {{ comanda.creada | hora }} · Mesero: {{ comanda.venta.mesero.nombre }}
+                </p>
+            </div>
+            <span class="text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap
+                {{ 'bg-amber-200 text-amber-900' if comanda.estado == EstadoComanda.EN_PREPARACION else 'bg-verde text-white' }}">
+                {{ EstadoComanda.ETIQUETAS[comanda.estado] }}
+            </span>
+        </div>
+
+        <table class="w-full text-sm mt-3">
+            <tbody>
+                {% for detalle in comanda.venta.detalles %}
+                <tr class="border-t border-black/5">
+                    <td class="py-1.5 pr-2 font-bold w-8">{{ detalle.cantidad }}×</td>
+                    <td class="py-1.5">
+                        {{ detalle.producto_nombre }}
+                        {% if detalle.guisado %}
+                        <span class="block text-xs text-terracota font-bold">🍲 Guisado: {{ detalle.guisado }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="flex gap-2 mt-3">
+            {% if comanda.estado == EstadoComanda.EN_PREPARACION %}
+            <form method="post" action="{{ url_for('cocina.marcar_listo', comanda_id=comanda.id) }}" class="flex-1">
+                <button type="submit"
+                        class="w-full bg-verde hover:bg-verde/80 text-white font-bold py-2 rounded-xl text-sm transition">
+                    ✅ Marcar lista
+                </button>
+            </form>
+            {% endif %}
+            <form method="post" action="{{ url_for('cocina.despachar', comanda_id=comanda.id) }}" class="flex-1">
+                <button type="submit"
+                        class="w-full bg-cafe hover:bg-cafeoscuro text-white font-bold py-2 rounded-xl text-sm transition">
+                    🗑️ Despachar
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bg-verdementa border border-verde rounded-2xl p-10 text-center">
+    <p class="text-5xl mb-3">🎉</p>
+    <p class="font-clasica text-xl font-bold text-verde">¡No hay comandas pendientes!</p>
+    <p class="text-sm text-cafe/70 mt-1">La pantalla de cocina está despejada.</p>
+</div>
+{% endif %}
+
+{% if historial %}
+<section class="mt-8">
+    <h2 class="font-clasica text-lg font-bold mb-3">📜 Últimas comandas despachadas</h2>
+    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-xs uppercase text-cafe/60 border-b border-cremaoscura">
+                    <th class="py-2 px-4">Folio</th>
+                    <th class="py-2 px-4">Creada</th>
+                    <th class="py-2 px-4">Mesero</th>
+                    <th class="py-2 px-4">Tipo</th>
+                    <th class="py-2 px-4">Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for comanda in historial %}
+                <tr class="border-b border-crema/60">
+                    <td class="py-2 px-4 font-semibold">{{ comanda.folio }}</td>
+                    <td class="py-2 px-4">{{ comanda.creada | fecha_hora }}</td>
+                    <td class="py-2 px-4">{{ comanda.venta.mesero.nombre }}</td>
+                    <td class="py-2 px-4">{{ TipoOrden.ETIQUETAS[comanda.tipo_orden] }}</td>
+                    <td class="py-2 px-4">
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-verdementa text-verde">
+                            {{ EstadoComanda.ETIQUETAS[comanda.estado] }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+{% endblock %}
