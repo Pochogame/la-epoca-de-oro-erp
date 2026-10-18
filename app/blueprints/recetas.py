@@ -16,10 +16,25 @@ def index():
     menu = MenuService()
     inventario = InventarioService()
     productos = menu.listar_productos()
+
+    recetas = {}
+    for producto in productos:
+        lineas = []
+        for linea in menu.receta_de(producto.id):
+            stock = inventario.stock_de(linea.insumo_id, producto.almacen_consumo_id)
+            if stock <= 0:
+                estado = "AGOTADO"
+            elif linea.insumo.bajo_minimo:
+                estado = "BAJO"
+            else:
+                estado = "OK"
+            lineas.append({"linea": linea, "stock": stock, "estado": estado})
+        recetas[producto.id] = lineas
+
     return render_template(
         "recetas/index.html",
         productos=productos,
-        recetas={producto.id: menu.receta_de(producto.id) for producto in productos},
+        recetas=recetas,
         insumos=inventario.insumos.activos(),
         almacenes=inventario.almacenes.todos_ordenados(),
         turnos=Turno.TODOS,

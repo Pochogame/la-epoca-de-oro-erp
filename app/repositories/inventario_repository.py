@@ -1,4 +1,11 @@
-from app.models.inventario import Almacen, Insumo, Merma, MovimientoInventario, StockAlmacen
+from app.models.inventario import (
+    Almacen,
+    AvisoFaltante,
+    Insumo,
+    Merma,
+    MovimientoInventario,
+    StockAlmacen,
+)
 from app.repositories.base import RepositorioBase
 
 
@@ -79,4 +86,26 @@ class MermaRepositorio(RepositorioBase):
             Merma.query.filter(Merma.fecha >= desde, Merma.fecha <= hasta)
             .order_by(Merma.fecha)
             .all()
+        )
+
+
+class AvisoRepositorio(RepositorioBase):
+    def __init__(self):
+        super().__init__(AvisoFaltante)
+
+    def pendientes(self):
+        return (
+            AvisoFaltante.query.filter_by(resuelto=False)
+            .order_by(AvisoFaltante.creado)
+            .all()
+        )
+
+    def pendiente_de(self, insumo_id):
+        return (
+            AvisoFaltante.query.filter_by(insumo_id=insumo_id, resuelto=False).first()
+        )
+
+    def historial(self, limite=50):
+        return (
+            AvisoFaltante.query.order_by(AvisoFaltante.creado.desc()).limit(limite).all()
         )

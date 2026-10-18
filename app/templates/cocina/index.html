@@ -3,74 +3,119 @@
 {% block titulo %}Comandas en cocina · La Época de Oro ERP{% endblock %}
 
 {% block contenido %}
-<meta http-equiv="refresh" content="30">
 <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
     <div>
         <h1 class="font-clasica text-2xl font-bold">🍳 Pantalla de cocina</h1>
-        <p class="text-sm text-cafe/70">Comandas activas · la pantalla se actualiza automáticamente cada 30 segundos</p>
+        <p class="text-sm text-cafe/70">
+            Comandas activas por mesero · se actualiza sola cuando hay cambios
+        </p>
     </div>
-    <a href="{{ url_for('cocina.index') }}" class="text-sm bg-white border border-cremaoscura px-4 py-2 rounded-xl font-bold hover:bg-crema transition">
-        🔄 Actualizar ahora
-    </a>
+    <div class="flex gap-2">
+        <a href="{{ url_for('cocina.insumos') }}" class="text-sm bg-white border border-cremaoscura px-4 py-2 rounded-xl font-bold hover:bg-crema transition">
+            🥕 Insumos de cocina
+        </a>
+        <a href="{{ url_for('cocina.index') }}" class="text-sm bg-white border border-cremaoscura px-4 py-2 rounded-xl font-bold hover:bg-crema transition">
+            🔄 Actualizar ahora
+        </a>
+    </div>
 </div>
+
+{% if avisos %}
+<div class="bg-red-50 border border-red-300 rounded-2xl p-4 mb-5">
+    <p class="font-bold text-red-800 mb-1">🥕 Insumos reportados como faltantes:</p>
+    <p class="text-sm text-red-700">
+        {% for aviso in avisos %}
+        <span class="inline-block bg-white border border-red-200 rounded-full px-3 py-1 mr-1 mb-1 text-xs font-semibold">
+            {{ aviso.insumo.nombre }} ({{ aviso.usuario.nombre if aviso.usuario else 'cocina' }})
+        </span>
+        {% endfor %}
+    </p>
+    <a href="{{ url_for('cocina.insumos') }}" class="text-xs font-bold text-red-800 underline">Ver y resolver →</a>
+</div>
+{% endif %}
 
 {% if comandas %}
-<div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-    {% for comanda in comandas %}
-    <div class="rounded-2xl border-2 shadow-sm p-4 animar-entrada
-                {{ 'border-amber-300 bg-amber-50' if comanda.estado == EstadoComanda.EN_PREPARACION else 'border-verde bg-verdementa' }}">
-        <div class="flex items-start justify-between gap-2">
-            <div>
-                <h2 class="font-clasica text-lg font-bold">{{ comanda.folio }}</h2>
-                <p class="text-xs text-cafe/70">
-                    {{ TipoOrden.ICONOS[comanda.tipo_orden] }} {{ TipoOrden.ETIQUETAS[comanda.tipo_orden] }}
-                    · {{ Turno.ICONOS[comanda.turno] }} {{ Turno.ETIQUETAS[comanda.turno] }}
-                </p>
-                <p class="text-xs text-cafe/70 mt-0.5">
-                    🕐 {{ comanda.creada | hora }} · Mesero: {{ comanda.venta.mesero.nombre }}
-                </p>
-            </div>
-            <span class="text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap
-                {{ 'bg-amber-200 text-amber-900' if comanda.estado == EstadoComanda.EN_PREPARACION else 'bg-verde text-white' }}">
-                {{ EstadoComanda.ETIQUETAS[comanda.estado] }}
-            </span>
-        </div>
-
-        <table class="w-full text-sm mt-3">
-            <tbody>
-                {% for detalle in comanda.venta.detalles %}
-                <tr class="border-t border-black/5">
-                    <td class="py-1.5 pr-2 font-bold w-8">{{ detalle.cantidad }}×</td>
-                    <td class="py-1.5">
-                        {{ detalle.producto_nombre }}
-                        {% if detalle.guisado %}
-                        <span class="block text-xs text-terracota font-bold">🍲 Guisado: {{ detalle.guisado }}</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <div class="flex gap-2 mt-3">
-            {% if comanda.estado == EstadoComanda.EN_PREPARACION %}
-            <form method="post" action="{{ url_for('cocina.marcar_listo', comanda_id=comanda.id) }}" class="flex-1">
-                <button type="submit"
-                        class="w-full bg-verde hover:bg-verde/80 text-white font-bold py-2 rounded-xl text-sm transition">
-                    ✅ Marcar lista
-                </button>
-            </form>
-            {% endif %}
-            <form method="post" action="{{ url_for('cocina.despachar', comanda_id=comanda.id) }}" class="flex-1">
-                <button type="submit"
-                        class="w-full bg-cafe hover:bg-cafeoscuro text-white font-bold py-2 rounded-xl text-sm transition">
-                    🗑️ Despachar
-                </button>
-            </form>
-        </div>
+{% for mesero, comandas_mesero in comandas | groupby('venta.mesero.nombre') %}
+<section class="mb-7">
+    <div class="flex items-center gap-2 mb-3">
+        <h2 class="font-clasica text-xl font-bold">🧑‍🍳 Comandas de {{ mesero }}</h2>
+        <span class="bg-terracota text-white text-xs font-bold px-2.5 py-1 rounded-full">
+            {{ comandas_mesero | length }}
+        </span>
     </div>
-    {% endfor %}
-</div>
+    <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {% for comanda in comandas_mesero %}
+        <div class="rounded-2xl border-2 shadow-sm p-4 animar-entrada
+                    {{ 'border-amber-300 bg-amber-50' if comanda.estado == EstadoComanda.EN_PREPARACION else 'border-verde bg-verdementa' }}">
+            <div class="flex items-start justify-between gap-2">
+                <div>
+                    <h3 class="font-clasica text-lg font-bold">{{ comanda.folio }}</h3>
+                    <p class="text-xs text-cafe/70">
+                        {{ TipoOrden.ICONOS[comanda.tipo_orden] }} {{ TipoOrden.ETIQUETAS[comanda.tipo_orden] }}
+                        · {{ Turno.ICONOS[comanda.turno] }} {{ Turno.ETIQUETAS[comanda.turno] }}
+                        {% if comanda.venta.mesa %}· 🪑 Mesa {{ comanda.venta.mesa.numero }}{% endif %}
+                    </p>
+                    <p class="text-xs text-cafe/70 mt-0.5">
+                        🕐 {{ comanda.creada | hora }}
+                    </p>
+                    <p class="text-sm mt-1">
+                        Mesero: <span class="font-bold text-terracota">{{ comanda.venta.mesero.nombre }}</span>
+                    </p>
+                </div>
+                <span class="text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap
+                    {{ 'bg-amber-200 text-amber-900' if comanda.estado == EstadoComanda.EN_PREPARACION else 'bg-verde text-white' }}">
+                    {{ EstadoComanda.ETIQUETAS[comanda.estado] }}
+                </span>
+            </div>
+
+            <table class="w-full text-sm mt-3">
+                <tbody>
+                    {% for detalle in comanda.venta.detalles %}
+                    <tr class="border-t border-black/5">
+                        <td class="py-1.5 pr-2 font-bold w-8">{{ detalle.cantidad }}×</td>
+                        <td class="py-1.5">
+                            {{ detalle.producto_nombre }}
+                            {% if detalle.guisado %}
+                            <span class="block text-xs text-terracota font-bold">🍲 Guisado: {{ detalle.guisado }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="flex gap-2 mt-3 flex-wrap">
+                <a href="{{ url_for('cocina.comanda_detalle', comanda_id=comanda.id) }}"
+                   class="flex-1 text-center bg-white border border-cremaoscura font-bold py-2 rounded-xl text-xs hover:bg-crema transition">
+                    🧾 Ver insumos
+                </a>
+                {% if comanda.estado == EstadoComanda.EN_PREPARACION %}
+                <form method="post" action="{{ url_for('cocina.marcar_listo', comanda_id=comanda.id) }}" class="flex-1">
+                    <button type="submit"
+                            class="w-full bg-verde hover:bg-verde/80 text-white font-bold py-2 rounded-xl text-xs transition">
+                        ✅ Marcar lista
+                    </button>
+                </form>
+                {% else %}
+                <form method="post" action="{{ url_for('cocina.despachar', comanda_id=comanda.id) }}" class="flex-1">
+                    <button type="submit"
+                            class="w-full bg-cafe hover:bg-cafeoscuro text-white font-bold py-2 rounded-xl text-xs transition">
+                        📦 Entregar al mesero
+                    </button>
+                </form>
+                {% endif %}
+                <button type="button"
+                        class="flex-1 bg-red-100 hover:bg-red-200 text-red-800 border border-red-300 font-bold py-2 rounded-xl text-xs transition boton-merma"
+                        data-folio="{{ comanda.folio }}"
+                        data-accion="{{ url_for('cocina.merma', comanda_id=comanda.id) }}">
+                    🗑️ Merma
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endfor %}
 {% else %}
 <div class="bg-verdementa border border-verde rounded-2xl p-10 text-center">
     <p class="text-5xl mb-3">🎉</p>
@@ -81,7 +126,7 @@
 
 {% if historial %}
 <section class="mt-8">
-    <h2 class="font-clasica text-lg font-bold mb-3">📜 Últimas comandas despachadas</h2>
+    <h2 class="font-clasica text-lg font-bold mb-3">📜 Últimas comandas</h2>
     <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
@@ -101,7 +146,11 @@
                     <td class="py-2 px-4">{{ comanda.venta.mesero.nombre }}</td>
                     <td class="py-2 px-4">{{ TipoOrden.ETIQUETAS[comanda.tipo_orden] }}</td>
                     <td class="py-2 px-4">
-                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-verdementa text-verde">
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full
+                            {{ 'bg-verdementa text-verde' if comanda.estado == EstadoComanda.ENTREGADA }}
+                            {{ 'bg-amber-100 text-amber-800' if comanda.estado == EstadoComanda.EN_PREPARACION }}
+                            {{ 'bg-verde text-white' if comanda.estado == EstadoComanda.LISTA }}
+                            {{ 'bg-red-100 text-red-800' if comanda.estado == EstadoComanda.MERMA }}">
                             {{ EstadoComanda.ETIQUETAS[comanda.estado] }}
                         </span>
                     </td>
@@ -112,4 +161,80 @@
     </div>
 </section>
 {% endif %}
+
+<div id="modal-merma" class="hidden fixed inset-0 bg-cafeoscuro/60 z-50 items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 animar-entrada">
+        <h3 class="font-clasica text-xl font-bold mb-1">🗑️ Registrar merma de platillo</h3>
+        <p class="text-sm text-cafe/70 mb-4">
+            Comanda <span id="merma-folio" class="font-semibold text-terracota"></span>.
+            Úsalo cuando el cliente no pasó por su platillo o lo rechazó.
+        </p>
+        <form method="post" id="form-merma" class="space-y-3">
+            <div>
+                <label class="block text-sm font-semibold mb-1">Motivo</label>
+                <select name="motivo" class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+                    {% for motivo in motivos_merma %}
+                    <option value="{{ motivo }}">{{ motivo }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <label class="flex items-start gap-2 text-sm border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40 cursor-pointer">
+                <input type="checkbox" name="cancelar_venta" value="1" class="accent-terracota mt-0.5">
+                <span>
+                    <b>Cancelar también la venta</b><br>
+                    <span class="text-xs text-cafe/70">
+                        Marca esto si el cliente nunca pagó ni recogió el platillo.
+                        Si ya había pagado, déjalo desmarcado para conservar la venta.
+                    </span>
+                </span>
+            </label>
+            <button type="submit"
+                    class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition">
+                🗑️ Registrar merma
+            </button>
+        </form>
+        <button type="button" id="modal-merma-cancelar"
+                class="mt-3 w-full border border-cremaoscura text-cafe font-semibold py-2 rounded-xl hover:bg-crema transition">
+            Cancelar
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const modal = document.getElementById('modal-merma');
+        const form = document.getElementById('form-merma');
+        const folio = document.getElementById('merma-folio');
+
+        document.querySelectorAll('.boton-merma').forEach(function (boton) {
+            boton.addEventListener('click', function () {
+                form.action = boton.dataset.accion;
+                folio.textContent = boton.dataset.folio;
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            });
+        });
+
+        document.getElementById('modal-merma-cancelar').addEventListener('click', function () {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        });
+
+        const firmaInicial = "{{ firma }}";
+        setInterval(async function () {
+            try {
+                const respuesta = await fetch("{{ url_for('cocina.pulso') }}");
+                if (!respuesta.ok) return;
+                const datos = await respuesta.json();
+                if (datos.firma !== firmaInicial) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                /* sin conexion: se reintenta en el siguiente ciclo */
+            }
+        }, 10000);
+    })();
+</script>
 {% endblock %}

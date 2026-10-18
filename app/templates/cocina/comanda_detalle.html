@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block titulo %}Comanda {{ comanda.folio }} · Cocina{% endblock %}
+
+{% block contenido %}
+<div class="mb-3">
+    <a href="{{ url_for('cocina.index') }}" class="text-sm text-terracota font-bold hover:underline">← Volver a comandas</a>
+</div>
+
+{% include "_comanda_detalle.html" %}
+
+<div class="flex gap-2 mt-5 flex-wrap">
+    {% if comanda.estado == EstadoComanda.EN_PREPARACION %}
+    <form method="post" action="{{ url_for('cocina.marcar_listo', comanda_id=comanda.id) }}" class="flex-1 min-w-[200px]">
+        <button type="submit"
+                class="w-full bg-verde hover:bg-verde/80 text-white font-bold py-3 rounded-xl transition">
+            ✅ Marcar lista
+        </button>
+    </form>
+    {% endif %}
+    {% if comanda.estado in (EstadoComanda.EN_PREPARACION, EstadoComanda.LISTA) %}
+    <form method="post" action="{{ url_for('cocina.despachar', comanda_id=comanda.id) }}" class="flex-1 min-w-[200px]">
+        <button type="submit"
+                class="w-full bg-cafe hover:bg-cafeoscuro text-white font-bold py-3 rounded-xl transition">
+            📦 Entregar al mesero
+        </button>
+    </form>
+    {% endif %}
+    <a href="{{ url_for('cocina.index') }}"
+       class="flex-1 min-w-[200px] text-center bg-white border border-cremaoscura font-bold py-3 rounded-xl hover:bg-crema transition">
+        ← Regresar
+    </a>
+</div>
+
+{% if avisos %}
+<div class="bg-amber-50 border border-amber-300 rounded-2xl p-4 mt-5 text-sm text-amber-900">
+    ℹ️ Algunos insumos de esta comanda ya fueron reportados como faltantes. Revisa
+    <a href="{{ url_for('cocina.insumos') }}" class="font-bold underline">inventario de cocina</a>.
+</div>
+{% endif %}
+{% endblock %}

@@ -5,8 +5,8 @@ Sistema ERP + POS para "La Época de Oro (Café, Guisados y Nostalgia)": punto d
 ## Stack
 
 - Python 3.10+ con Flask 3, Flask-SQLAlchemy y SQLite (sin servicios externos).
-- Jinja2 + Tailwind CSS (CDN) + JavaScript vanilla para el carrito del POS.
-- pytest para las pruebas (45 pruebas de integración con base de datos en memoria).
+- Jinja2 + Tailwind CSS (CDN) + JavaScript vanilla para el carrito del POS y gráficas (Chart.js CDN por página).
+- pytest para las pruebas (58 pruebas de integración con base de datos en memoria).
 
 ## Instalación
 
@@ -70,14 +70,18 @@ docs/                      Prompt mejorado y reporte final
 ## Módulos
 
 - **Autenticación**: login, recuperación de contraseña y administración de usuarios (solo ADMIN).
-- **POS (meseros)**: turno mañana/tarde, carrito, modificador de guisados para tacos y tortas, validación de stock, métodos de pago y ticket imprimible.
-- **Cocina (chefs)**: comandas en preparación, listas y despacho con historial.
+- **POS (meseros)**: turno mañana/tarde, carrito, modificador de guisados para tacos y tortas, selección de mesa, validación de stock, métodos de pago y ticket imprimible. Incluye panel de comandas pendientes con estado en vivo.
+- **Mesas**: mapa del salón por zona (Interior, Terraza, Barra) con estados (libre, ocupada, reservada, limpieza) y liberación automática tras cerrar la comanda.
+- **Cocina (chefs)**: comandas agrupadas por mesero, con auto-actualización (pulso), marca de lista → entrega → merma (con opción de cancelar la venta), historial y visor de insumos por comanda.
+- **Insumos de cocina**: chefs reportan faltantes con un clic; el aviso aparece en el dashboard y se resuelve cuando llega el insumo.
 - **Inventario**: 3 almacenes (ALM-MP, ALM-COC, ALM-POS), entradas con estado de pago, transferencias, mermas con motivo, alertas de stock mínimo y bitácora de movimientos.
-- **Recetas (BOM)**: productos con receta por insumo/almacén; la venta descuenta insumos automáticamente.
-- **Contabilidad**: libro diario con asientos automáticos (venta, compra, gasto, merma, nómina y pagos), gastos operativos, cuentas por pagar, estado de resultados real por turno y flujo de caja.
-- **RRHH**: registro de asistencias con validaciones y pago de nómina por periodo (sin doble pago).
+- **Recetas (BOM)**: productos con receta por insumo/almacén; la venta descuenta insumos automáticamente. Cada tarjeta muestra stock disponible y "alcanza para ~N platillos".
+- **Reportes (ADMIN)**: ventas por día, horas pico, top platillos, por turno, rendimiento por mesa y proyecciones, con gráficas.
+- **Contabilidad**: libro diario con asientos automáticos (venta, compra, gasto, merma de insumo y de platillo, cancelación, nómina y pagos), gastos operativos, cuentas por pagar, estado de resultados real por turno y flujo de caja.
+- **RRHH**: marcado rápido de jornada (entrada/retardo/salida con hora del servidor), registro manual, asistencias con validaciones y pago de nómina por periodo (sin doble pago).
 
 ## Documentación
 
 - `docs/PROMPT_MEJORADO.md`: versión optimizada del prompt original.
 - `docs/REPORTE_FINAL.md`: correcciones aplicadas, por qué y evidencia de verificación.
+- `docs/ROADMAP.md`: ideas acordadas para después (lealtad, reservaciones, modo móvil, etc.).

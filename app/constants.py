@@ -43,11 +43,29 @@ class EstadoComanda:
     EN_PREPARACION = "EN_PREPARACION"
     LISTA = "LISTA"
     ENTREGADA = "ENTREGADA"
+    MERMA = "MERMA"
     ETIQUETAS = {
         EN_PREPARACION: "En preparación",
         LISTA: "Lista para entregar",
         ENTREGADA: "Entregada",
+        MERMA: "Merma (no entregada)",
     }
+    ACTIVAS = (EN_PREPARACION, LISTA)
+
+
+class EstadoMesa:
+    LIBRE = "LIBRE"
+    OCUPADA = "OCUPADA"
+    RESERVADA = "RESERVADA"
+    LIMPIEZA = "LIMPIEZA"
+    TODOS = (LIBRE, OCUPADA, RESERVADA, LIMPIEZA)
+    ETIQUETAS = {
+        LIBRE: "Libre",
+        OCUPADA: "Ocupada",
+        RESERVADA: "Reservada",
+        LIMPIEZA: "En limpieza",
+    }
+    ICONOS = {LIBRE: "🟢", OCUPADA: "🔴", RESERVADA: "🟡", LIMPIEZA: "🔵"}
 
 
 class TipoMovimiento:
@@ -88,6 +106,14 @@ MOTIVOS_MERMA = (
     "Derrame o accidente",
     "Producto dañado en almacén",
     "Devolución de cliente",
+    "Otro",
+)
+
+MOTIVOS_MERMA_COMANDA = (
+    "Cliente no pasó por su platillo",
+    "Cliente canceló el pedido",
+    "Error de preparación",
+    "Platillo devuelto",
     "Otro",
 )
 

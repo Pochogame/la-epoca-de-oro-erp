@@ -101,3 +101,22 @@ class Merma(db.Model):
     insumo = db.relationship("Insumo")
     almacen = db.relationship("Almacen")
     usuario = db.relationship("Usuario")
+
+
+class AvisoFaltante(db.Model):
+    __tablename__ = "avisos_faltantes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    insumo_id = db.Column(db.Integer, db.ForeignKey("insumos.id"), nullable=False)
+    almacen_id = db.Column(db.Integer, db.ForeignKey("almacenes.id"))
+    comentario = db.Column(db.String(200), default="")
+    creado = db.Column(db.DateTime, default=datetime.now)
+    resuelto = db.Column(db.Boolean, nullable=False, default=False)
+    resuelto_en = db.Column(db.DateTime)
+    usuario_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"))
+    resuelto_por_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"))
+
+    insumo = db.relationship("Insumo")
+    almacen = db.relationship("Almacen")
+    usuario = db.relationship("Usuario", foreign_keys=[usuario_id])
+    resuelto_por = db.relationship("Usuario", foreign_keys=[resuelto_por_id])

@@ -3,7 +3,7 @@ from datetime import date, datetime
 
 from app.constants import EstadoAsistencia
 from app.extensions import db
-from app.models.rrhh import NominaPago
+from app.models.rrhh import Asistencia, NominaPago
 from app.repositories.rrhh_repository import AsistenciaRepositorio, NominaRepositorio
 from app.repositories.usuario_repository import UsuarioRepositorio
 from app.services.contabilidad_service import ContabilidadService
@@ -39,13 +39,53 @@ class RRHHService:
 
         asistencia = self.asistencias.del_dia(usuario_id, fecha)
         if asistencia is None:
-            from app.models.rrhh import Asistencia
-
             asistencia = Asistencia(usuario_id=usuario_id, fecha=fecha)
             self.asistencias.agregar(asistencia)
         asistencia.hora_entrada = hora_entrada
         asistencia.hora_salida = hora_salida
         asistencia.estado = estado
+        db.session.commit()
+        return asistencia
+
+    def marcar_jornada(self, usuario_id, fecha, accion):
+        usuario = self.usuarios.obtener(usuario_id)
+        if usuario is None or not usuario.activo:
+            raise DatosInvalidosError("El trabajador indicado no existe o está inactivo.")
+        if accion not in ("entrada", "retardo", "salida"):
+            raise DatosInvalidosError("La acción de asistencia no es válida.")
+        if not isinstance(fecha, date) or fecha > datetime.now().date():
+            raise DatosInvalidosError("La fecha de asistencia no es válida.")
+
+        asistencia = self.asistencias.del_dia(usuario_id, fecha)
+        if asistencia is None:
+            asistencia = Asistencia(usuario_id=usuario_id, fecha=fecha)
+            self.asistencias.agregar(asistencia)
+
+        ahora = datetime.now().time().replace(second=0, microsecond=0)
+        if accion == "salida":
+            if asistencia.hora_entrada is None:
+                raise DatosInvalidosError(
+                    f"{usuario.nombre} no tiene hora de entrada registrada todavía."
+                )
+            if asistencia.hora_salida is not None:
+                raise DatosInvalidosError(
+                    f"{usuario.nombre} ya tiene salida registrada hoy "
+                    f"({asistencia.hora_salida.strftime('%H:%M')})."
+                )
+            asistencia.hora_salida = ahora
+            if asistencia.estado == EstadoAsistencia.FALTA:
+                asistencia.estado = EstadoAsistencia.PRESENTE
+        else:
+            if asistencia.hora_entrada is not None:
+                raise DatosInvalidosError(
+                    f"{usuario.nombre} ya tiene entrada registrada hoy "
+                    f"({asistencia.hora_entrada.strftime('%H:%M')}). "
+                    "Usa el formulario manual si necesitas corregirla."
+                )
+            asistencia.hora_entrada = ahora
+            asistencia.estado = (
+                EstadoAsistencia.PRESENTE if accion == "entrada" else EstadoAsistencia.RETARDO
+            )
         db.session.commit()
         return asistencia
 

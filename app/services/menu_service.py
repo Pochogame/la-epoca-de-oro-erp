@@ -14,6 +14,8 @@ ORDEN_CATEGORIAS = (
     "Almuerzos Caseros",
     "Platillos de Cuchara",
     "Antojitos (Tacos y Tortas)",
+    "Refrescos",
+    "Aguas Frescas",
 )
 
 

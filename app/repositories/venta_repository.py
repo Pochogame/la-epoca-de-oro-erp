@@ -1,4 +1,4 @@
-from app.models.ventas import Comanda, Venta, VentaDetalle
+from app.models.ventas import Comanda, Mesa, Venta, VentaDetalle
 from app.repositories.base import RepositorioBase
 
 
@@ -12,14 +12,27 @@ class VentaRepositorio(RepositorioBase):
         return f"VTA-{numero:05d}"
 
     def en_rango(self, desde, hasta):
-        return Venta.query.filter(Venta.fecha >= desde, Venta.fecha <= hasta).order_by(Venta.fecha).all()
+        return (
+            Venta.query.filter(
+                Venta.fecha >= desde,
+                Venta.fecha <= hasta,
+                Venta.cancelada.is_(False),
+            )
+            .order_by(Venta.fecha)
+            .all()
+        )
 
     def recientes(self, limite=50):
-        return Venta.query.order_by(Venta.fecha.desc()).limit(limite).all()
+        return (
+            Venta.query.filter(Venta.cancelada.is_(False))
+            .order_by(Venta.fecha.desc())
+            .limit(limite)
+            .all()
+        )
 
     def del_mesero(self, mesero_id, limite=30):
         return (
-            Venta.query.filter_by(mesero_id=mesero_id)
+            Venta.query.filter_by(mesero_id=mesero_id, cancelada=False)
             .order_by(Venta.fecha.desc())
             .limit(limite)
             .all()
@@ -42,5 +55,52 @@ class ComandaRepositorio(RepositorioBase):
             .all()
         )
 
+    def pendientes_de_mesero(self, mesero_id, limite=30):
+        return (
+            Comanda.query.join(Venta)
+            .filter(
+                Venta.mesero_id == mesero_id,
+                Venta.cancelada.is_(False),
+                Comanda.cerrada_en.is_(None),
+            )
+            .order_by(Comanda.estado.desc(), Comanda.creada.desc())
+            .limit(limite)
+            .all()
+        )
+
     def historial(self, limite=50):
         return Comanda.query.order_by(Comanda.creada.desc()).limit(limite).all()
+
+    def mermas_en_rango(self, desde, hasta):
+        return (
+            Comanda.query.join(Venta)
+            .filter(
+                Comanda.estado == "MERMA",
+                Venta.fecha >= desde,
+                Venta.fecha <= hasta,
+            )
+            .order_by(Venta.fecha)
+            .all()
+        )
+
+
+class MesaRepositorio(RepositorioBase):
+    def __init__(self):
+        super().__init__(Mesa)
+
+    def todas(self):
+        return Mesa.query.order_by(Mesa.numero).all()
+
+    def por_numero(self, numero):
+        return Mesa.query.filter_by(numero=numero).first()
+
+    def por_zona(self):
+        zonas = {}
+        for mesa in self.todas():
+            zonas.setdefault(mesa.zona, []).append(mesa)
+        return zonas
+
+
+class VentaDetalleRepositorio(RepositorioBase):
+    def __init__(self):
+        super().__init__(VentaDetalle)

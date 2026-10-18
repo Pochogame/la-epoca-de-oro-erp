@@ -6,12 +6,76 @@
 <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
     <div>
         <h1 class="font-clasica text-2xl font-bold">👥 Asistencias y turnos</h1>
-        <p class="text-sm text-cafe/70">Registro de entrada/salida del personal (base para el cálculo de nómina)</p>
+        <p class="text-sm text-cafe/70">
+            Marcado rápido de hoy ({{ hoy.strftime('%d/%m/%Y') }}) y registro del mes
+        </p>
     </div>
     <a href="{{ url_for('rrhh.nomina') }}" class="text-sm bg-white border border-cremaoscura px-4 py-2 rounded-xl font-bold hover:bg-crema transition">
         💰 Ir a Nómina →
     </a>
 </div>
+
+<section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5 mb-5">
+    <h2 class="font-clasica text-lg font-bold mb-1">⚡ Marcado rápido de hoy</h2>
+    <p class="text-xs text-cafe/60 mb-4">
+        Un clic registra la hora actual del servidor. Si alguien ya tiene entrada, marca su salida.
+    </p>
+    <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        {% for empleado in empleados %}
+        {% set marca = asistencias_hoy.get(empleado.id) %}
+        <div class="border border-cremaoscura rounded-xl p-3 bg-crema/30">
+            <div class="flex items-center justify-between gap-2 mb-2">
+                <div>
+                    <p class="font-bold text-sm">{{ empleado.nombre }}</p>
+                    <p class="text-xs text-cafe/60">{{ Rol.ETIQUETAS[empleado.rol] }}</p>
+                </div>
+                {% if marca %}
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap
+                    {{ 'bg-verdementa text-verde' if marca.estado == EstadoAsistencia.PRESENTE }}
+                    {{ 'bg-amber-100 text-amber-800' if marca.estado == EstadoAsistencia.RETARDO }}
+                    {{ 'bg-red-50 text-red-700' if marca.estado == EstadoAsistencia.FALTA }}">
+                    {{ EstadoAsistencia.ETIQUETAS[marca.estado] }}
+                    {% if marca.hora_entrada %}· {{ marca.hora_entrada.strftime('%H:%M') }}{% endif %}
+                    {% if marca.hora_salida %}→ {{ marca.hora_salida.strftime('%H:%M') }}{% endif %}
+                </span>
+                {% else %}
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-cremaoscura text-cafe/60 whitespace-nowrap">
+                    Sin registro hoy
+                </span>
+                {% endif %}
+            </div>
+            <div class="flex gap-1.5 flex-wrap">
+                {% if not marca or not marca.hora_entrada %}
+                <form method="post">
+                    <input type="hidden" name="usuario_id" value="{{ empleado.id }}">
+                    <input type="hidden" name="accion" value="entrada">
+                    <button type="submit" class="text-xs font-bold bg-verde hover:bg-verde/80 text-white px-3 py-1.5 rounded-lg transition">
+                        ✅ Entrada
+                    </button>
+                </form>
+                <form method="post">
+                    <input type="hidden" name="usuario_id" value="{{ empleado.id }}">
+                    <input type="hidden" name="accion" value="retardo">
+                    <button type="submit" class="text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg transition">
+                        ⏰ Retardo
+                    </button>
+                </form>
+                {% elif not marca.hora_salida %}
+                <form method="post">
+                    <input type="hidden" name="usuario_id" value="{{ empleado.id }}">
+                    <input type="hidden" name="accion" value="salida">
+                    <button type="submit" class="text-xs font-bold bg-cafe hover:bg-cafeoscuro text-white px-3 py-1.5 rounded-lg transition">
+                        🏁 Salida ({{ marca.hora_entrada.strftime('%H:%M') }})
+                    </button>
+                </form>
+                {% else %}
+                <span class="text-xs font-semibold text-verde">✅ Jornada completa</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
 
 <div class="grid lg:grid-cols-3 gap-5">
     <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5 h-fit">

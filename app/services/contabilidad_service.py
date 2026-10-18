@@ -17,7 +17,7 @@ from app.repositories.contabilidad_repository import (
     GastoRepositorio,
 )
 from app.repositories.inventario_repository import MermaRepositorio, MovimientoRepositorio
-from app.repositories.venta_repository import VentaRepositorio
+from app.repositories.venta_repository import ComandaRepositorio, VentaRepositorio
 from app.services.excepciones import DatosInvalidosError, OperacionDuplicadaError
 
 
@@ -30,6 +30,7 @@ class ContabilidadService:
         ventas=None,
         mermas=None,
         movimientos=None,
+        comandas=None,
     ):
         self.asientos = asientos or AsientoRepositorio()
         self.cuentas = cuentas or CuentaContableRepositorio()
@@ -37,6 +38,7 @@ class ContabilidadService:
         self.ventas = ventas or VentaRepositorio()
         self.mermas = mermas or MermaRepositorio()
         self.movimientos = movimientos or MovimientoRepositorio()
+        self.comandas = comandas or ComandaRepositorio()
 
     def registrar_asiento(self, concepto, lineas, origen="AUTOMATICO", referencia=""):
         total_debe = round(sum(linea[1] for linea in lineas), 2)
@@ -145,10 +147,23 @@ class ContabilidadService:
         ventas_manana = round(sum(v.total for v in ventas if v.turno == Turno.MANANA), 2)
         ventas_tarde = round(sum(v.total for v in ventas if v.turno == Turno.TARDE), 2)
         ventas_total = round(ventas_manana + ventas_tarde, 2)
-        costo_ventas = round(sum(v.costo_insumos for v in ventas), 2)
+
+        comandas_merma = self.comandas.mermas_en_rango(desde, hasta)
+        costo_mermas_platillos = round(
+            sum(comanda.venta.costo_insumos for comanda in comandas_merma), 2
+        )
+        ventas_no_merma = [
+            venta
+            for venta in ventas
+            if not (venta.comanda and venta.comanda.estado == "MERMA")
+        ]
+        costo_ventas = round(sum(v.costo_insumos for v in ventas_no_merma), 2)
         utilidad_bruta = round(ventas_total - costo_ventas, 2)
 
-        mermas = round(sum(m.costo_estimado for m in self.mermas.en_rango(desde, hasta)), 2)
+        mermas_insumos = round(
+            sum(m.costo_estimado for m in self.mermas.en_rango(desde, hasta)), 2
+        )
+        mermas = round(mermas_insumos + costo_mermas_platillos, 2)
 
         gastos = self.gastos.en_rango(desde, hasta)
         nomina = round(sum(g.monto for g in gastos if g.categoria == "NOMINA"), 2)
@@ -185,6 +200,9 @@ class ContabilidadService:
             "costo_ventas": costo_ventas,
             "utilidad_bruta": utilidad_bruta,
             "mermas": mermas,
+            "mermas_insumos": mermas_insumos,
+            "mermas_platillos": costo_mermas_platillos,
+            "comandas_merma": comandas_merma,
             "nomina": nomina,
             "lineas_gastos": lineas_gastos,
             "total_gastos_operativos": total_gastos_operativos,

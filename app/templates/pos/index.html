@@ -8,20 +8,76 @@
         <h1 class="font-clasica text-2xl font-bold">📋 Toma de pedidos (POS)</h1>
         <p class="text-sm text-cafe/70">Mesero: <span class="font-semibold">{{ g.usuario.nombre }}</span></p>
     </div>
-    <div class="flex items-center gap-2 bg-white rounded-xl border border-cremaoscura p-1.5 shadow-sm">
-        <span class="text-xs font-bold uppercase text-cafe/60 px-2">Turno:</span>
-        {% for t in [Turno.MANANA, Turno.TARDE] %}
-        <a href="{{ url_for('pos.index', turno=t) }}"
-           class="px-4 py-2 rounded-lg text-sm font-bold transition
-                  {{ 'bg-terracota text-white shadow' if turno == t else 'text-cafe hover:bg-crema' }}">
-            {{ Turno.ICONOS[t] }} {{ Turno.ETIQUETAS[t] }}
+    <div class="flex items-center gap-2 flex-wrap">
+        <div class="flex items-center gap-2 bg-white rounded-xl border border-cremaoscura p-1.5 shadow-sm">
+            <span class="text-xs font-bold uppercase text-cafe/60 px-2">Turno:</span>
+            {% for t in [Turno.MANANA, Turno.TARDE] %}
+            <a href="{{ url_for('pos.index', turno=t) }}"
+               class="px-4 py-2 rounded-lg text-sm font-bold transition
+                      {{ 'bg-terracota text-white shadow' if turno == t else 'text-cafe hover:bg-crema' }}">
+                {{ Turno.ICONOS[t] }} {{ Turno.ETIQUETAS[t] }}
+            </a>
+            {% endfor %}
+        </div>
+        <a href="{{ url_for('pos.mesas') }}"
+           class="bg-white border border-cremaoscura px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-crema transition shadow-sm">
+            🪑 Mapa de mesas
         </a>
-        {% endfor %}
-        {% if turno != turno_sugerido %}
-        <span class="text-[10px] text-cafe/50 px-1">(turno sugerido: {{ Turno.ICONOS[turno_sugerido] }})</span>
-        {% endif %}
     </div>
 </div>
+
+<section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4 mb-5">
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+        <h2 class="font-clasica text-lg font-bold">⏳ Mis comandas pendientes</h2>
+        <span id="pulso-comandas" class="text-xs text-cafe/50">Se actualiza solo cada 15 segundos</span>
+    </div>
+    <div id="lista-pendientes" class="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+        {% for comanda in comandas_pendientes %}
+        <div class="rounded-xl border-2 p-3
+            {{ 'border-amber-300 bg-amber-50' if comanda.estado == EstadoComanda.EN_PREPARACION }}
+            {{ 'border-verde bg-verdementa' if comanda.estado == EstadoComanda.LISTA }}
+            {{ 'border-cremaoscura bg-crema/40' if comanda.estado == EstadoComanda.ENTREGADA }}
+            {{ 'border-red-300 bg-red-50' if comanda.estado == EstadoComanda.MERMA }}">
+            <div class="flex justify-between items-start gap-2">
+                <div>
+                    <p class="font-bold">{{ comanda.folio }}
+                        {% if comanda.venta.mesa %}<span class="text-xs">· 🪑 Mesa {{ comanda.venta.mesa.numero }}</span>{% endif %}
+                    </p>
+                    <p class="text-xs text-cafe/60">
+                        {{ comanda.creada | hora }} · {{ TipoOrden.ICONOS[comanda.tipo_orden] }}
+                        {{ TipoOrden.ETIQUETAS[comanda.tipo_orden] }} · {{ comanda.venta.total | moneda }}
+                    </p>
+                </div>
+                <span class="text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap
+                    {{ 'bg-amber-200 text-amber-900' if comanda.estado == EstadoComanda.EN_PREPARACION }}
+                    {{ 'bg-verde text-white' if comanda.estado == EstadoComanda.LISTA }}
+                    {{ 'bg-cremaoscura text-cafe' if comanda.estado == EstadoComanda.ENTREGADA }}
+                    {{ 'bg-red-200 text-red-800' if comanda.estado == EstadoComanda.MERMA }}">
+                    {{ EstadoComanda.ETIQUETAS[comanda.estado] }}
+                </span>
+            </div>
+            <div class="flex gap-2 mt-2">
+                <a href="{{ url_for('pos.comanda_detalle', comanda_id=comanda.id) }}"
+                   class="flex-1 text-center text-xs bg-white border border-cremaoscura font-bold py-1.5 rounded-lg hover:bg-crema transition">
+                    🔍 Ver insumos
+                </a>
+                {% if comanda.estado in (EstadoComanda.ENTREGADA, EstadoComanda.MERMA) %}
+                <form method="post" action="{{ url_for('pos.cerrar_comanda', comanda_id=comanda.id) }}" class="flex-1">
+                    <input type="hidden" name="volver" value="{{ url_for('pos.index', turno=turno) }}">
+                    <button type="submit"
+                            class="w-full text-xs bg-cafe hover:bg-cafeoscuro text-white font-bold py-1.5 rounded-lg transition">
+                        ✅ Cerrar
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <p id="pendientes-vacio" class="text-sm text-cafe/60 {{ '' if not comandas_pendientes else 'hidden' }}">
+        No tienes comandas pendientes por cerrar. 🎉
+    </p>
+</section>
 
 <div class="grid lg:grid-cols-3 gap-5">
     <div class="lg:col-span-2 space-y-5">
@@ -58,7 +114,7 @@
                         <tr class="text-left text-xs uppercase text-cafe/60 border-b border-cremaoscura">
                             <th class="py-2 pr-3">Folio</th>
                             <th class="py-2 pr-3">Hora</th>
-                            <th class="py-2 pr-3">Tipo</th>
+                            <th class="py-2 pr-3">Mesa</th>
                             <th class="py-2 pr-3">Total</th>
                             <th class="py-2 pr-3">Comanda</th>
                             <th class="py-2"></th>
@@ -69,14 +125,15 @@
                         <tr class="border-b border-crema/60">
                             <td class="py-2 pr-3 font-semibold">{{ venta.folio }}</td>
                             <td class="py-2 pr-3">{{ venta.fecha | fecha_hora }}</td>
-                            <td class="py-2 pr-3">{{ TipoOrden.ICONOS[venta.tipo_orden] }} {{ TipoOrden.ETIQUETAS[venta.tipo_orden] }}</td>
+                            <td class="py-2 pr-3">{{ ('🪑 ' ~ venta.mesa.numero) if venta.mesa else '—' }}</td>
                             <td class="py-2 pr-3 font-bold">{{ venta.total | moneda }}</td>
                             <td class="py-2 pr-3">
                                 {% if venta.comanda %}
                                 <span class="text-xs font-semibold px-2 py-0.5 rounded-full
                                     {{ 'bg-amber-100 text-amber-800' if venta.comanda.estado == EstadoComanda.EN_PREPARACION }}
-                                    {{ 'bg-blue-100 text-blue-800' if venta.comanda.estado == EstadoComanda.LISTA }}
-                                    {{ 'bg-verdementa text-verde' if venta.comanda.estado == EstadoComanda.ENTREGADA }}">
+                                    {{ 'bg-verde text-white' if venta.comanda.estado == EstadoComanda.LISTA }}
+                                    {{ 'bg-verdementa text-verde' if venta.comanda.estado == EstadoComanda.ENTREGADA }}
+                                    {{ 'bg-red-100 text-red-800' if venta.comanda.estado == EstadoComanda.MERMA }}">
                                     {{ EstadoComanda.ETIQUETAS[venta.comanda.estado] }}
                                 </span>
                                 {% endif %}
@@ -138,6 +195,25 @@
                     </div>
                 </div>
 
+                <div id="bloque-mesa">
+                    <label class="text-xs font-bold uppercase text-cafe/60" for="mesa_id">Mesa (si es para comer aquí)</label>
+                    <select name="mesa_id" id="mesa_id"
+                            class="w-full border border-cremaoscura rounded-lg px-3 py-2 mt-1 bg-crema/40">
+                        <option value="">— Elegir mesa —</option>
+                        {% for zona, mesas_zona in mesas.items() %}
+                        <optgroup label="{{ zona }}">
+                            {% for mesa in mesas_zona %}
+                            {% set activas = mesa.comandas_activas | length %}
+                            <option value="{{ mesa.id }}"
+                                    {{ 'disabled' if mesa.estado == EstadoMesa.RESERVADA }}>
+                                Mesa {{ mesa.numero }}{{ ' · reservada' if mesa.estado == EstadoMesa.RESERVADA }}{{ ' · ' ~ activas ~ ' comanda(s)' if activas }}
+                            </option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endfor %}
+                    </select>
+                </div>
+
                 <div>
                     <label class="text-xs font-bold uppercase text-cafe/60" for="metodo_pago">Método de pago</label>
                     <select name="metodo_pago" id="metodo_pago"
@@ -176,6 +252,73 @@
 {% block scripts %}
 <script>
     window.GUISADOS_DISPONIBLES = {{ guisados | tojson }};
+    window.ETIQUETAS_COMANDA = {{ EstadoComanda.ETIQUETAS | tojson }};
+    window.URL_COMANDA_DETALLE = "{{ url_for('pos.comanda_detalle', comanda_id=999999) }}".replace("999999", "");
+    window.URL_CERRAR_COMANDA = "{{ url_for('pos.cerrar_comanda', comanda_id=999999) }}".replace("999999", "");
+    window.URL_POS_TURNO = "{{ url_for('pos.index', turno=turno) }}";
+
+    (function () {
+        const contenedor = document.getElementById("lista-pendientes");
+        const vacio = document.getElementById("pendientes-vacio");
+        let firmaAnterior = null;
+
+        function colorBorde(estado) {
+            if (estado === "EN_PREPARACION") return "border-amber-300 bg-amber-50";
+            if (estado === "LISTA") return "border-verde bg-verdementa";
+            if (estado === "MERMA") return "border-red-300 bg-red-50";
+            return "border-cremaoscura bg-crema/40";
+        }
+        function colorEtiqueta(estado) {
+            if (estado === "EN_PREPARACION") return "bg-amber-200 text-amber-900";
+            if (estado === "LISTA") return "bg-verde text-white";
+            if (estado === "MERMA") return "bg-red-200 text-red-800";
+            return "bg-cremaoscura text-cafe";
+        }
+
+        function renderizar(comandas) {
+            const firma = JSON.stringify(comandas);
+            if (firma === firmaAnterior) return;
+            firmaAnterior = firma;
+            contenedor.innerHTML = "";
+            vacio.classList.toggle("hidden", comandas.length > 0);
+            comandas.forEach(function (comanda) {
+                const div = document.createElement("div");
+                div.className = "rounded-xl border-2 p-3 " + colorBorde(comanda.estado);
+                div.innerHTML =
+                    '<div class="flex justify-between items-start gap-2">' +
+                    '<div><p class="font-bold">' + comanda.folio +
+                    (comanda.mesa ? ' <span class="text-xs">· 🪑 Mesa ' + comanda.mesa + '</span>' : '') +
+                    '</p><p class="text-xs text-cafe/60">' + comanda.hora + ' · ' + comanda.tipo +
+                    ' · ' + comanda.total + '</p></div>' +
+                    '<span class="text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap ' +
+                    colorEtiqueta(comanda.estado) + '">' + comanda.etiqueta + '</span></div>' +
+                    '<div class="flex gap-2 mt-2">' +
+                    '<a href="' + window.URL_COMANDA_DETALLE + comanda.id +
+                    '" class="flex-1 text-center text-xs bg-white border border-cremaoscura font-bold py-1.5 rounded-lg hover:bg-crema transition">🔍 Ver insumos</a>' +
+                    (comanda.cerrable
+                        ? '<form method="post" action="' + window.URL_CERRAR_COMANDA + comanda.id +
+                          '" class="flex-1"><input type="hidden" name="volver" value="' + window.URL_POS_TURNO +
+                          '"><button type="submit" class="w-full text-xs bg-cafe hover:bg-cafeoscuro text-white font-bold py-1.5 rounded-lg transition">✅ Cerrar</button></form>'
+                        : "") +
+                    "</div>";
+                contenedor.appendChild(div);
+            });
+        }
+
+        async function consultar() {
+            try {
+                const respuesta = await fetch("{{ url_for('pos.comandas_estado') }}");
+                if (respuesta.ok) {
+                    renderizar(await respuesta.json());
+                }
+            } catch (error) {
+                /* sin conexion: se reintenta en el siguiente ciclo */
+            }
+        }
+
+        setInterval(consultar, 15000);
+        consultar();
+    })();
 </script>
 <script src="{{ url_for('static', filename='js/pos.js') }}"></script>
 {% endblock %}

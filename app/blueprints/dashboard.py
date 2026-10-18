@@ -34,6 +34,8 @@ def index():
         tickets_hoy=len(ventas_hoy),
         comandas_activas=ventas.comandas_activas(),
         alertas=inventario.alertas(),
+        avisos=inventario.avisos_pendientes(),
+        zonas_mesas=ventas.mesas_por_zona(),
         flujo=contabilidad.flujo_caja(),
         resultado_mes=contabilidad.estado_resultados(inicio_mes, fin_mes),
         ultimas_ventas=ventas.ventas_recientes(8),

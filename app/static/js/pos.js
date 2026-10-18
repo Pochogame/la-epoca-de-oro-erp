@@ -153,9 +153,49 @@
 
     modalCancelar.addEventListener('click', cerrarModal);
 
+    const selectMesa = document.getElementById('mesa_id');
+    const bloqueMesa = document.getElementById('bloque-mesa');
+
+    function sincronizarMesa() {
+        const tipo = document.querySelector('input[name="tipo_orden"]:checked');
+        const esAqui = tipo && tipo.value === 'AQUI';
+        if (bloqueMesa) {
+            bloqueMesa.classList.toggle('opacity-40', !esAqui);
+        }
+        if (selectMesa) {
+            selectMesa.disabled = !esAqui;
+            if (esAqui) {
+                selectMesa.setAttribute('required', 'required');
+            } else {
+                selectMesa.removeAttribute('required');
+                selectMesa.value = '';
+            }
+        }
+    }
+
+    document.querySelectorAll('input[name="tipo_orden"]').forEach((radio) => {
+        radio.addEventListener('change', sincronizarMesa);
+    });
+    sincronizarMesa();
+
+    const parametros = new URLSearchParams(window.location.search);
+    if (parametros.get('mesa') && selectMesa) {
+        const opcion = selectMesa.querySelector('option[value="' + parametros.get('mesa') + '"]');
+        if (opcion && !opcion.disabled) {
+            opcion.selected = true;
+        }
+    }
+
     formPedido.addEventListener('submit', (evento) => {
         if (carrito.length === 0) {
             evento.preventDefault();
+            return;
+        }
+        const tipo = document.querySelector('input[name="tipo_orden"]:checked');
+        if (tipo && tipo.value === 'AQUI' && selectMesa && !selectMesa.value) {
+            evento.preventDefault();
+            alert('Elige la mesa para este pedido (o cambia a "Para llevar").');
+            selectMesa.focus();
             return;
         }
         itemsJson.value = JSON.stringify(

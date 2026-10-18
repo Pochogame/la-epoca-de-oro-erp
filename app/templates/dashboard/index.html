@@ -6,7 +6,10 @@
 <div class="flex items-center justify-between mb-5 flex-wrap gap-2">
     <div>
         <h1 class="font-clasica text-2xl font-bold">📊 Panel General</h1>
-        <p class="text-sm text-cafe/70">Resumen operativo y financiero de hoy · {{ now.strftime('%d/%m/%Y %H:%M') }}</p>
+        <p class="text-sm text-cafe/70 flex items-center gap-2 flex-wrap">
+            Resumen operativo y financiero de hoy
+            <span class="etiqueta-ticket">{{ now.strftime('%d/%m/%Y %H:%M') }}</span>
+        </p>
     </div>
     <div class="flex gap-2 text-sm">
         <a href="{{ url_for('pos.index') }}" class="bg-terracota hover:bg-terracotaoscuro text-white px-4 py-2 rounded-xl font-semibold">📋 Nuevo pedido</a>
@@ -14,25 +17,25 @@
     </div>
 </div>
 
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-7">
+    <div class="tira-pelicula p-4 pt-5">
         <p class="text-xs uppercase tracking-wide text-cafe/60 font-semibold">Ventas de hoy</p>
         <p class="text-2xl font-bold text-terracota mt-1">{{ total_hoy | moneda }}</p>
         <p class="text-xs text-cafe/60">{{ tickets_hoy }} ticket(s)</p>
     </div>
-    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+    <div class="tira-pelicula p-4 pt-5">
         <p class="text-xs uppercase tracking-wide text-cafe/60 font-semibold">Utilidad neta del mes</p>
         <p class="text-2xl font-bold {{ 'text-verde' if resultado_mes.utilidad_neta >= 0 else 'text-red-600' }} mt-1">
             {{ resultado_mes.utilidad_neta | moneda }}
         </p>
         <p class="text-xs text-cafe/60">Margen {{ resultado_mes.margen_neto }}%</p>
     </div>
-    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+    <div class="tira-pelicula p-4 pt-5">
         <p class="text-xs uppercase tracking-wide text-cafe/60 font-semibold">Efectivo disponible</p>
         <p class="text-2xl font-bold text-cafe mt-1">{{ flujo.efectivo_disponible | moneda }}</p>
         <p class="text-xs text-cafe/60">Caja {{ flujo.caja | moneda }} · Bancos {{ flujo.bancos | moneda }}</p>
     </div>
-    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+    <div class="tira-pelicula p-4 pt-5">
         <p class="text-xs uppercase tracking-wide text-cafe/60 font-semibold">Cuentas por pagar</p>
         <p class="text-2xl font-bold text-dorado mt-1">{{ flujo.cuentas_por_pagar | moneda }}</p>
         <p class="text-xs text-cafe/60">
@@ -78,6 +81,24 @@
 
     <div class="space-y-5">
         <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
+            <h2 class="font-clasica text-lg font-bold mb-3">🪑 Estado de mesas</h2>
+            <div class="grid grid-cols-4 gap-2">
+                {% for zona, mesas_zona in zonas_mesas.items() %}
+                {% for mesa in mesas_zona %}
+                {% set ocupada = mesa.comandas_activas %}
+                <a href="{{ url_for('pos.mesas') }}"
+                   class="mesa-carta block {{ 'bg-red-50 border-red-400' if ocupada else 'bg-verdementa border-verde' }}"
+                   title="{{ zona }} · {{ EstadoMesa.ETIQUETAS[mesa.estado] }}">
+                    <p class="font-bold text-lg leading-none">{{ mesa.numero }}</p>
+                    <p class="text-[10px] mt-1">{{ '🔴' if ocupada else '🟢' }}</p>
+                </a>
+                {% endfor %}
+                {% endfor %}
+            </div>
+            <a href="{{ url_for('pos.mesas') }}" class="inline-block mt-3 text-xs text-terracota font-bold hover:underline">Ver mapa de mesas →</a>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
             <h2 class="font-clasica text-lg font-bold mb-3">⚠️ Alertas de stock mínimo</h2>
             {% if alertas %}
             <ul class="space-y-2 text-sm">
@@ -95,23 +116,65 @@
         </div>
 
         <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
-            <h2 class="font-clasica text-lg font-bold mb-3">🍳 Comandas activas</h2>
-            {% if comandas_activas %}
+            <h2 class="font-clasica text-lg font-bold mb-3">🥕 Avisos de insumos faltantes</h2>
+            {% if avisos %}
             <ul class="space-y-2 text-sm">
-                {% for comanda in comandas_activas[:6] %}
-                <li class="flex justify-between gap-2">
-                    <span>{{ comanda.folio }} · {{ comanda.venta.mesero.nombre }}</span>
-                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full
-                        {{ 'bg-amber-100 text-amber-800' if comanda.estado == EstadoComanda.EN_PREPARACION else 'bg-verdementa text-verde' }}">
-                        {{ EstadoComanda.ETIQUETAS[comanda.estado] }}
-                    </span>
+                {% for aviso in avisos[:6] %}
+                <li class="flex justify-between gap-2 items-center">
+                    <span class="font-semibold">{{ aviso.insumo.nombre }}</span>
+                    <span class="text-xs text-cafe/60">{{ aviso.usuario.nombre if aviso.usuario else '' }}
+                        · {{ aviso.creado | hora }}</span>
                 </li>
                 {% endfor %}
             </ul>
-        {% else %}
-            <p class="text-sm text-cafe/60">Sin comandas pendientes.</p>
-        {% endif %}
+            <a href="{{ url_for('cocina.insumos') }}" class="inline-block mt-3 text-xs text-terracota font-bold hover:underline">Atender avisos →</a>
+            {% else %}
+            <p class="text-sm text-verde">✅ Cocina no ha reportado faltantes.</p>
+            {% endif %}
         </div>
+    </div>
+</div>
+
+<div class="grid lg:grid-cols-2 gap-5 mt-5">
+    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
+        <h2 class="font-clasica text-lg font-bold mb-3">🍳 Comandas activas</h2>
+        {% if comandas_activas %}
+        <ul class="space-y-2 text-sm">
+            {% for comanda in comandas_activas[:8] %}
+            <li class="flex justify-between gap-2 items-center border-b border-crema/60 pb-2">
+                <span>
+                    <b>{{ comanda.folio }}</b> · {{ comanda.venta.mesero.nombre }}
+                    {% if comanda.venta.mesa %}<span class="text-xs">· 🪑 Mesa {{ comanda.venta.mesa.numero }}</span>{% endif %}
+                    <span class="block text-xs text-cafe/60">{{ comanda.creada | hora }} · {{ Turno.ETIQUETAS[comanda.turno] }}</span>
+                </span>
+                <span class="text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap
+                    {{ 'bg-amber-100 text-amber-800' if comanda.estado == EstadoComanda.EN_PREPARACION else 'bg-verdementa text-verde' }}">
+                    {{ EstadoComanda.ETIQUETAS[comanda.estado] }}
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+        <a href="{{ url_for('cocina.index') }}" class="inline-block mt-3 text-xs text-terracota font-bold hover:underline">Ir a cocina →</a>
+        {% else %}
+        <p class="text-sm text-cafe/60">Sin comandas pendientes.</p>
+        {% endif %}
+    </div>
+
+    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
+        <h2 class="font-clasica text-lg font-bold mb-3">💰 Resultado del mes</h2>
+        <ul class="space-y-2 text-sm">
+            <li class="flex justify-between"><span>Ventas</span><b>{{ resultado_mes.ventas_total | moneda }}</b></li>
+            <li class="flex justify-between"><span>Costo de ventas (BOM)</span><b>-{{ resultado_mes.costo_ventas | moneda }}</b></li>
+            <li class="flex justify-between border-t border-cremaoscura pt-2"><span>Utilidad bruta</span><b>{{ resultado_mes.utilidad_bruta | moneda }}</b></li>
+            <li class="flex justify-between"><span>Mermas (insumos y platillos)</span><b>-{{ resultado_mes.mermas | moneda }}</b></li>
+            <li class="flex justify-between"><span>Gastos operativos</span><b>-{{ resultado_mes.total_gastos_operativos | moneda }}</b></li>
+            <li class="flex justify-between"><span>Nómina</span><b>-{{ resultado_mes.nomina | moneda }}</b></li>
+            <li class="flex justify-between border-t border-cremaoscura pt-2 text-base">
+                <span class="font-bold">Utilidad neta</span>
+                <b class="{{ 'text-verde' if resultado_mes.utilidad_neta >= 0 else 'text-red-600' }}">{{ resultado_mes.utilidad_neta | moneda }}</b>
+            </li>
+        </ul>
+        <a href="{{ url_for('contabilidad.estado_resultados') }}" class="inline-block mt-3 text-xs text-terracota font-bold hover:underline">Ver estado de resultados →</a>
     </div>
 </div>
 {% endblock %}

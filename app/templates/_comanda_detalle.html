@@ -1,0 +1,111 @@
+<div class="flex items-start justify-between gap-3 flex-wrap mb-4">
+    <div>
+        <h1 class="font-clasica text-2xl font-bold">{{ comanda.folio }}
+            {% if comanda.venta.mesa %}<span class="text-lg">· 🪑 Mesa {{ comanda.venta.mesa.numero }}</span>{% endif %}
+        </h1>
+        <p class="text-sm text-cafe/70 mt-1">
+            Mesero: <b class="text-terracota">{{ comanda.venta.mesero.nombre }}</b>
+            · {{ TipoOrden.ICONOS[comanda.tipo_orden] }} {{ TipoOrden.ETIQUETAS[comanda.tipo_orden] }}
+            · {{ Turno.ICONOS[comanda.turno] }} {{ Turno.ETIQUETAS[comanda.turno] }}
+            · 🕐 {{ comanda.creada | fecha_hora }}
+            · Total: <b>{{ comanda.venta.total | moneda }}</b>
+            {% if comanda.venta.cancelada %}· <span class="text-red-600 font-bold">VENTA CANCELADA</span>{% endif %}
+        </p>
+    </div>
+    <span class="text-xs font-bold px-3 py-1.5 rounded-full
+        {{ 'bg-amber-200 text-amber-900' if comanda.estado == EstadoComanda.EN_PREPARACION }}
+        {{ 'bg-verde text-white' if comanda.estado == EstadoComanda.LISTA }}
+        {{ 'bg-verdementa text-verde' if comanda.estado == EstadoComanda.ENTREGADA }}
+        {{ 'bg-red-100 text-red-800' if comanda.estado == EstadoComanda.MERMA }}">
+        {{ EstadoComanda.ETIQUETAS[comanda.estado] }}
+    </span>
+</div>
+
+{% if comanda.estado == EstadoComanda.MERMA %}
+<div class="bg-red-50 border border-red-300 rounded-2xl p-4 mb-4 text-sm">
+    <b class="text-red-800">🗑️ Merma registrada:</b> {{ comanda.motivo_merma }}
+    {% if comanda.merma_en %}· {{ comanda.merma_en | fecha_hora }}{% endif %}
+    {% if comanda.venta.cancelada %}· la venta fue cancelada y el cobro revertido.{% else %}
+    · la venta se conservó (el cliente ya había pagado).{% endif %}
+</div>
+{% endif %}
+
+<div class="grid lg:grid-cols-2 gap-5">
+    <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
+        <h2 class="font-clasica text-lg font-bold mb-3">🍽️ Platillos del pedido</h2>
+        {% for linea in lineas %}
+        <div class="border-b border-crema/60 py-2">
+            <p class="font-semibold text-sm">
+                {{ linea.detalle.cantidad }}× {{ linea.detalle.producto_nombre }}
+                {% if linea.detalle.guisado %}
+                <span class="text-xs text-terracota font-bold">· 🍲 {{ linea.detalle.guisado }}</span>
+                {% endif %}
+            </p>
+            <ul class="text-xs text-cafe/70 mt-1 space-y-0.5">
+                {% for ingrediente in linea.ingredientes %}
+                <li>
+                    • {{ ingrediente.insumo.nombre }}:
+                    {{ ingrediente.cantidad | cantidad }} {{ ingrediente.insumo.unidad }}
+                    <span class="text-cafe/50">({{ ingrediente.almacen.nombre }})</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    </section>
+
+    <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
+        <h2 class="font-clasica text-lg font-bold mb-1">📦 Impacto en inventario</h2>
+        <p class="text-xs text-cafe/60 mb-3">
+            El stock mostrado es el que quedó DESPUÉS de esta venta. "Agotado" significa que
+            esta comanda vació el insumo.
+        </p>
+        {% if agotados %}
+        <div class="bg-red-50 border border-red-300 rounded-xl p-3 mb-3 text-sm text-red-800">
+            ⚠️ <b>Se vació el inventario de:</b>
+            {% for consumo in agotados %}
+            {{ consumo.insumo.nombre }}{{ ', ' if not loop.last }}
+            {% endfor %}
+        </div>
+        {% endif %}
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-xs uppercase text-cafe/60 border-b border-cremaoscura">
+                    <th class="py-2 pr-2">Insumo</th>
+                    <th class="py-2 pr-2 text-right">Usado</th>
+                    <th class="py-2 pr-2 text-right">Stock</th>
+                    <th class="py-2">Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for consumo in consumos %}
+                <tr class="border-b border-crema/60">
+                    <td class="py-1.5 pr-2">{{ consumo.insumo.nombre }}</td>
+                    <td class="py-1.5 pr-2 text-right whitespace-nowrap">
+                        {{ consumo.cantidad | cantidad }} {{ consumo.insumo.unidad }}
+                    </td>
+                    <td class="py-1.5 pr-2 text-right font-semibold whitespace-nowrap
+                        {{ 'text-red-600' if consumo.estado == 'AGOTADO' else ('text-amber-700' if consumo.estado == 'BAJO') }}">
+                        {{ consumo.stock | cantidad }} {{ consumo.insumo.unidad }}
+                    </td>
+                    <td class="py-1.5">
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap
+                            {{ 'bg-red-100 text-red-800' if consumo.estado == 'AGOTADO' }}
+                            {{ 'bg-amber-100 text-amber-800' if consumo.estado == 'BAJO' }}
+                            {{ 'bg-verdementa text-verde' if consumo.estado == 'OK' }}">
+                            {{ '🚨 AGOTADO' if consumo.estado == 'AGOTADO' else ('⚠️ BAJO' if consumo.estado == 'BAJO' else '✅ OK') }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if agotados %}
+        <p class="text-xs text-red-700 mt-3">
+            Sugerencia: reporta los insumos agotados en
+            <a href="{{ url_for('cocina.insumos') }}" class="font-bold underline">Insumos de cocina</a>
+            o registra una entrada/transferencia en inventario.
+        </p>
+        {% endif %}
+    </section>
+</div>

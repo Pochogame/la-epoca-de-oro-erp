@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block titulo %}Insumos de cocina · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="font-clasica text-2xl font-bold">🥕 Insumos de cocina</h1>
+        <p class="text-sm text-cafe/70">
+            Reporta lo que se agotó para que administración lo reabastezca.
+        </p>
+    </div>
+    <a href="{{ url_for('cocina.index') }}" class="text-sm bg-white border border-cremaoscura px-4 py-2 rounded-xl font-bold hover:bg-crema transition">
+        ← Volver a comandas
+    </a>
+</div>
+
+{% if avisos %}
+<div class="bg-red-50 border border-red-300 rounded-2xl p-4 mb-5">
+    <p class="font-bold text-red-800 mb-2">🚨 Faltantes reportados (pendientes):</p>
+    <ul class="space-y-2">
+        {% for aviso in avisos %}
+        <li class="flex items-center justify-between gap-2 bg-white border border-red-200 rounded-xl px-3 py-2">
+            <div class="text-sm">
+                <b>{{ aviso.insumo.nombre }}</b>
+                <span class="text-cafe/60">
+                    · reportó {{ aviso.usuario.nombre if aviso.usuario else 'cocina' }}
+                    · {{ aviso.creado | fecha_hora }}
+                    {% if aviso.comentario %}· "{{ aviso.comentario }}"{% endif %}
+                </span>
+            </div>
+            <form method="post" action="{{ url_for('cocina.resolver_faltante', aviso_id=aviso.id) }}">
+                <input type="hidden" name="volver" value="{{ url_for('cocina.insumos') }}">
+                <button type="submit"
+                        class="text-xs bg-verde hover:bg-verde/80 text-white font-bold px-3 py-1.5 rounded-lg transition whitespace-nowrap">
+                    ✅ Ya llegó
+                </button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% else %}
+<div class="bg-verdementa border border-verde rounded-2xl p-4 mb-5 text-sm text-verde font-semibold">
+    ✅ Sin faltantes reportados. Todo en orden.
+</div>
+{% endif %}
+
+<div class="bg-white rounded-2xl border border-cremaoscura shadow-sm overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="text-left text-xs uppercase text-cafe/60 border-b border-cremaoscura">
+                <th class="py-3 px-4">Insumo</th>
+                <th class="py-3 px-4 text-right">Stock actual</th>
+                <th class="py-3 px-4 text-right">Mínimo</th>
+                <th class="py-3 px-4">Estado</th>
+                <th class="py-3 px-4 text-right">Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for fila in filas %}
+            <tr class="border-b border-crema/60">
+                <td class="py-2.5 px-4">
+                    <p class="font-semibold">{{ fila.insumo.nombre }}</p>
+                    <p class="text-xs text-cafe/50">{{ fila.insumo.codigo }}</p>
+                </td>
+                <td class="py-2.5 px-4 text-right font-bold whitespace-nowrap
+                    {{ 'text-red-600' if fila.stock <= 0 else ('text-amber-700' if fila.insumo.bajo_minimo else 'text-verde') }}">
+                    {{ fila.stock | cantidad }} {{ fila.insumo.unidad }}
+                </td>
+                <td class="py-2.5 px-4 text-right text-cafe/60 whitespace-nowrap">
+                    {{ fila.insumo.stock_minimo | cantidad }} {{ fila.insumo.unidad }}
+                </td>
+                <td class="py-2.5 px-4">
+                    {% if fila.stock <= 0 %}
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-800 whitespace-nowrap">🚨 AGOTADO</span>
+                    {% elif fila.insumo.bajo_minimo %}
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 whitespace-nowrap">⚠️ BAJO</span>
+                    {% else %}
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-verdementa text-verde whitespace-nowrap">✅ OK</span>
+                    {% endif %}
+                    {% if fila.aviso %}
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 border border-red-300 text-red-700 whitespace-nowrap ml-1">
+                        📣 avisado
+                    </span>
+                    {% endif %}
+                </td>
+                <td class="py-2.5 px-4 text-right">
+                    {% if fila.aviso %}
+                    <form method="post" action="{{ url_for('cocina.resolver_faltante', aviso_id=fila.aviso.id) }}" class="inline">
+                        <input type="hidden" name="volver" value="{{ url_for('cocina.insumos') }}">
+                        <button type="submit" class="text-xs font-bold text-verde hover:underline whitespace-nowrap">
+                            ✅ Ya llegó
+                        </button>
+                    </form>
+                    {% else %}
+                    <form method="post" action="{{ url_for('cocina.avisar_faltante', insumo_id=fila.insumo.id) }}" class="inline">
+                        <button type="submit" class="text-xs font-bold text-red-700 hover:underline whitespace-nowrap">
+                            📣 Avisar que se agotó
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

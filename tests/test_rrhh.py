@@ -128,3 +128,67 @@ def test_nomina_sin_asistencias_no_se_puede_pagar(app):
 def test_mesero_no_accede_a_rrhh(mesero_logueado):
     assert mesero_logueado.get("/rrhh/asistencias").status_code == 403
     assert mesero_logueado.get("/rrhh/nomina").status_code == 403
+
+
+def test_marcado_rapido_entrada_y_salida(admin_logueado, app):
+    with app.app_context():
+        id_mesero2 = usuario_id("mesero2")
+
+    respuesta = admin_logueado.post(
+        "/rrhh/asistencias",
+        data={"usuario_id": id_mesero2, "accion": "entrada"},
+        follow_redirects=True,
+    )
+    assert "Marca registrada" in respuesta.get_data(as_text=True)
+
+    with app.app_context():
+        asistencia = Asistencia.query.filter_by(
+            usuario_id=id_mesero2, fecha=date.today()
+        ).first()
+        assert asistencia is not None
+        assert asistencia.estado == "PRESENTE"
+        assert asistencia.hora_entrada is not None
+
+    respuesta = admin_logueado.post(
+        "/rrhh/asistencias",
+        data={"usuario_id": id_mesero2, "accion": "entrada"},
+        follow_redirects=True,
+    )
+    assert "ya tiene entrada registrada" in respuesta.get_data(as_text=True)
+
+    admin_logueado.post(
+        "/rrhh/asistencias",
+        data={"usuario_id": id_mesero2, "accion": "salida"},
+        follow_redirects=True,
+    )
+    with app.app_context():
+        asistencia = Asistencia.query.filter_by(
+            usuario_id=id_mesero2, fecha=date.today()
+        ).first()
+        assert asistencia.hora_salida is not None
+
+
+def test_marcado_rapido_retardo_y_salida_sin_entrada(admin_logueado, app):
+    with app.app_context():
+        id_mesero2 = usuario_id("mesero2")
+
+    admin_logueado.post(
+        "/rrhh/asistencias",
+        data={"usuario_id": id_mesero2, "accion": "retardo"},
+        follow_redirects=True,
+    )
+    with app.app_context():
+        asistencia = Asistencia.query.filter_by(
+            usuario_id=id_mesero2, fecha=date.today()
+        ).first()
+        assert asistencia.estado == "RETARDO"
+
+    with app.app_context():
+        id_chef = usuario_id("chef1")
+
+    respuesta = admin_logueado.post(
+        "/rrhh/asistencias",
+        data={"usuario_id": id_chef, "accion": "salida"},
+        follow_redirects=True,
+    )
+    assert "no tiene hora de entrada" in respuesta.get_data(as_text=True)

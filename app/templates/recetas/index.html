@@ -128,16 +128,39 @@
             <span>Precio: <b class="text-terracota">{{ producto.precio | moneda }}</b></span>
             <span>Costo receta: <b>{{ producto.costo_receta | moneda }}</b></span>
         </div>
-        {% if recetas[producto.id] %}
+        {% set filas = recetas[producto.id] %}
+        {% if filas %}
+        {% set agotados = filas | selectattr('estado', 'equalto', 'AGOTADO') | list %}
+        {% set alcances = [] %}
+        {% for fila in filas %}{% if fila.estado != 'AGOTADO' %}{% set _ = alcances.append((fila.stock / fila.linea.cantidad) | int) %}{% endif %}{% endfor %}
+        {% if agotados %}
+        <p class="text-xs font-bold text-red-700 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5 mb-2">
+            🚨 No se puede preparar: falta
+            {% for fila in agotados %}{{ fila.linea.insumo.nombre }}{{ ', ' if not loop.last }}{% endfor %}
+        </p>
+        {% elif alcances %}
+        <p class="text-xs font-bold mb-2
+            {{ 'text-red-700' if alcances | min < 5 else ('text-amber-700' if alcances | min < 15 else 'text-verde') }}">
+            🍽️ Alcanza para ~{{ alcances | min }} platillo{{ 's' if alcances | min != 1 }} más
+        </p>
+        {% endif %}
         <table class="w-full text-xs">
             <tbody>
-                {% for linea in recetas[producto.id] %}
+                {% for fila in filas %}
                 <tr class="border-t border-crema/60">
-                    <td class="py-1 pr-2">{{ linea.insumo.nombre }}</td>
-                    <td class="py-1 text-right whitespace-nowrap">{{ linea.cantidad | cantidad }} {{ linea.insumo.unidad }}</td>
-                    <td class="py-1 text-right whitespace-nowrap text-cafe/60">{{ linea.costo | moneda }}</td>
+                    <td class="py-1 pr-2">{{ fila.linea.insumo.nombre }}</td>
+                    <td class="py-1 text-right whitespace-nowrap">{{ fila.linea.cantidad | cantidad }} {{ fila.linea.insumo.unidad }}</td>
+                    <td class="py-1 text-right whitespace-nowrap text-cafe/60">{{ fila.linea.costo | moneda }}</td>
+                    <td class="py-1 text-right whitespace-nowrap">
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full
+                            {{ 'bg-red-100 text-red-800' if fila.estado == 'AGOTADO' }}
+                            {{ 'bg-amber-100 text-amber-800' if fila.estado == 'BAJO' }}
+                            {{ 'bg-verdementa text-verde' if fila.estado == 'OK' }}">
+                            {{ fila.stock | cantidad }} {{ fila.linea.insumo.unidad }}
+                        </span>
+                    </td>
                     <td class="py-1 text-right">
-                        <form method="post" action="{{ url_for('recetas.eliminar_ingrediente', linea_id=linea.id) }}">
+                        <form method="post" action="{{ url_for('recetas.eliminar_ingrediente', linea_id=fila.linea.id) }}">
                             <button type="submit" class="text-red-500 font-bold" title="Quitar de la receta">✕</button>
                         </form>
                     </td>

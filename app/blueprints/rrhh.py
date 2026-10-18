@@ -26,6 +26,26 @@ def _servicio():
 def asistencias():
     servicio = _servicio()
     if request.method == "POST":
+        accion = request.form.get("accion")
+        if accion:
+            try:
+                asistencia = servicio.marcar_jornada(
+                    usuario_id=request.form.get("usuario_id", type=int),
+                    fecha=date.today(),
+                    accion=accion,
+                )
+            except ErrorDeNegocio as error:
+                db.session.rollback()
+                flash(error.mensaje, "error")
+            else:
+                flash(
+                    f"Marca registrada: {asistencia.usuario.nombre} · "
+                    f"{asistencia.estado.lower()} a las "
+                    f"{(asistencia.hora_salida or asistencia.hora_entrada).strftime('%H:%M')}.",
+                    "exito",
+                )
+            return redirect(url_for("rrhh.asistencias"))
+
         hora_entrada = request.form.get("hora_entrada") or None
         hora_salida = request.form.get("hora_salida") or None
         try:
@@ -44,16 +64,16 @@ def asistencias():
         return redirect(url_for("rrhh.asistencias"))
 
     usuario_id = request.args.get("usuario_id", type=int)
-    asistencias = servicio.listar_asistencias(
-        date.today().replace(day=1), date.today(), usuario_id=usuario_id
-    )
+    hoy = date.today()
+    asistencias = servicio.listar_asistencias(hoy.replace(day=1), hoy, usuario_id=usuario_id)
     return render_template(
         "rrhh/asistencias.html",
         empleados=servicio.usuarios.activos(),
         asistencias=asistencias,
+        asistencias_hoy={a.usuario_id: a for a in servicio.listar_asistencias(hoy, hoy)},
         estados=EstadoAsistencia.ETIQUETAS,
         usuario_filtro=usuario_id,
-        hoy=date.today(),
+        hoy=hoy,
     )
 
 

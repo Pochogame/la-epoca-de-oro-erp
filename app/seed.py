@@ -13,6 +13,7 @@ from app.models.contabilidad import CuentaContable
 from app.models.inventario import Almacen, Insumo, StockAlmacen
 from app.models.menu import Producto, RecetaIngrediente
 from app.models.usuario import Usuario
+from app.models.ventas import Mesa
 from app.services.contabilidad_service import ContabilidadService
 from app.services.rrhh_service import RRHHService
 from app.services.venta_service import VentaService
@@ -113,6 +114,15 @@ INSUMOS_SEMILLA = (
     ("INS-GUI-BAR", "Guisado: barbacoa", "kg", 380.0, 2.0, 0.0, 10.0, 0.0),
     ("INS-GUI-HUR", "Guisado: huevo en salsa roja", "kg", 90.0, 1.0, 0.0, 12.0, 0.0),
     ("INS-GUI-HUV", "Guisado: huevo en salsa verde", "kg", 90.0, 1.0, 0.0, 12.0, 0.0),
+    ("INS-REF-SAN", "Refresco Sangría (botella)", "pza", 15.0, 6.0, 0.0, 0.0, 24.0),
+    ("INS-REF-PEP", "Refresco Pepsi (botella)", "pza", 15.0, 6.0, 0.0, 0.0, 24.0),
+    ("INS-REF-FRE", "Refresco Fresca (botella)", "pza", 15.0, 6.0, 0.0, 0.0, 24.0),
+    ("INS-REF-MIR", "Refresco Mirinda (botella)", "pza", 15.0, 6.0, 0.0, 0.0, 24.0),
+    ("INS-AGU-JAM", "Flor de jamaica", "kg", 120.0, 0.5, 1.0, 0.5, 1.0),
+    ("INS-ARR", "Arroz para horchata", "kg", 25.0, 1.0, 3.0, 1.0, 1.5),
+    ("INS-CAN", "Canela en raja", "kg", 200.0, 0.2, 0.5, 0.2, 0.5),
+    ("INS-PEP", "Pepino", "kg", 18.0, 2.0, 4.0, 2.0, 2.0),
+    ("INS-AZU", "Azúcar", "kg", 22.0, 2.0, 8.0, 3.0, 4.0),
 )
 
 PRODUCTOS_SEMILLA = (
@@ -214,6 +224,50 @@ PRODUCTOS_SEMILLA = (
         "TAR-TORTA", "Torta Tradicional de Guisado", "Antojitos (Tacos y Tortas)", 65.0, Turno.TARDE, True, "ALM-COC",
         (("INS-TEL", 1), ("INS-MAY", 0.02)),
     ),
+    (
+        "TAR-REF-SAN", "Sangría", "Refrescos", 30.0, Turno.TARDE, False, "ALM-POS",
+        (("INS-REF-SAN", 1), ("INS-HIE", 0.15), ("INS-V16", 1)),
+    ),
+    (
+        "TAR-REF-PEP", "Pepsi", "Refrescos", 30.0, Turno.TARDE, False, "ALM-POS",
+        (("INS-REF-PEP", 1), ("INS-HIE", 0.15), ("INS-V16", 1)),
+    ),
+    (
+        "TAR-REF-FRE", "Fresca", "Refrescos", 30.0, Turno.TARDE, False, "ALM-POS",
+        (("INS-REF-FRE", 1), ("INS-HIE", 0.15), ("INS-V16", 1)),
+    ),
+    (
+        "TAR-REF-MIR", "Mirinda", "Refrescos", 30.0, Turno.TARDE, False, "ALM-POS",
+        (("INS-REF-MIR", 1), ("INS-HIE", 0.15), ("INS-V16", 1)),
+    ),
+    (
+        "TAR-AGU-JAM", "Agua de Jamaica", "Aguas Frescas", 35.0, Turno.TARDE, False, "ALM-POS",
+        (
+            ("INS-AGU-JAM", 0.02), ("INS-AZU", 0.02), ("INS-HIE", 0.20),
+            ("INS-V16", 1), ("INS-TAP", 1), ("INS-CUC", 1),
+        ),
+    ),
+    (
+        "TAR-AGU-HOR", "Agua de Horchata", "Aguas Frescas", 35.0, Turno.TARDE, False, "ALM-POS",
+        (
+            ("INS-ARR", 0.03), ("INS-CAN", 0.002), ("INS-AZU", 0.02), ("INS-HIE", 0.20),
+            ("INS-V16", 1), ("INS-TAP", 1), ("INS-CUC", 1),
+        ),
+    ),
+    (
+        "TAR-AGU-PEP", "Agua de Pepino con Limón", "Aguas Frescas", 35.0, Turno.TARDE, False, "ALM-POS",
+        (
+            ("INS-PEP", 0.10), ("INS-LIM", 0.03), ("INS-AZU", 0.02), ("INS-HIE", 0.20),
+            ("INS-V16", 1), ("INS-TAP", 1), ("INS-CUC", 1),
+        ),
+    ),
+)
+
+MESAS_SEMILLA = (
+    (1, "Salón principal"), (2, "Salón principal"), (3, "Salón principal"),
+    (4, "Salón principal"), (5, "Salón principal"), (6, "Salón principal"),
+    (7, "Terraza"), (8, "Terraza"), (9, "Terraza"), (10, "Terraza"),
+    (11, "Barra"), (12, "Barra"),
 )
 
 
@@ -288,6 +342,12 @@ def _crear_productos_y_recetas():
                     cantidad=cantidad,
                 )
             )
+    db.session.commit()
+
+
+def _crear_mesas():
+    for numero, zona in MESAS_SEMILLA:
+        db.session.add(Mesa(numero=numero, zona=zona))
     db.session.commit()
 
 
@@ -389,6 +449,7 @@ def _crear_ventas_ejemplo(admin_id):
         comanda.estado = EstadoComanda.ENTREGADA
         comanda.lista_en = comanda.creada
         comanda.entregada_en = comanda.creada
+        comanda.cerrada_en = comanda.creada
     db.session.commit()
 
 
@@ -404,9 +465,78 @@ def seed_database(reset=False):
     _crear_almacenes()
     _crear_insumos_y_stock()
     _crear_productos_y_recetas()
+    _crear_mesas()
     _crear_catalogo_contable()
     admin = Usuario.query.filter_by(username="admin").first()
     _crear_gastos_ejemplo(admin.id)
     _crear_asistencias_ejemplo()
     _crear_ventas_ejemplo(admin.id)
     return True
+
+
+def sincronizar_catalogo():
+    """Agrega a bases existentes lo nuevo del catálogo (insumos, productos, mesas)
+    sin tocar los datos ya capturados. Es idempotente."""
+    if Usuario.query.count() == 0:
+        return False
+
+    cambios = False
+    almacenes = {almacen.codigo: almacen for almacen in Almacen.query.all()}
+    if not almacenes:
+        return False
+
+    for codigo, nombre, unidad, costo, minimo, stock_mp, stock_coc, stock_pos in INSUMOS_SEMILLA:
+        if Insumo.query.filter_by(codigo=codigo).first() is not None:
+            continue
+        insumo = Insumo(
+            codigo=codigo, nombre=nombre, unidad=unidad, costo_unitario=costo, stock_minimo=minimo
+        )
+        db.session.add(insumo)
+        db.session.flush()
+        for almacen_codigo, cantidad in (
+            ("ALM-MP", stock_mp),
+            ("ALM-COC", stock_coc),
+            ("ALM-POS", stock_pos),
+        ):
+            if cantidad > 0:
+                db.session.add(
+                    StockAlmacen(
+                        insumo_id=insumo.id,
+                        almacen_id=almacenes[almacen_codigo].id,
+                        cantidad=cantidad,
+                    )
+                )
+        cambios = True
+
+    insumos = {insumo.codigo: insumo for insumo in Insumo.query.all()}
+    for codigo, nombre, categoria, precio, turno, requiere_guisado, almacen_codigo, receta in PRODUCTOS_SEMILLA:
+        if Producto.query.filter_by(codigo=codigo).first() is not None:
+            continue
+        producto = Producto(
+            codigo=codigo,
+            nombre=nombre,
+            categoria=categoria,
+            precio=precio,
+            turno=turno,
+            requiere_guisado=requiere_guisado,
+            almacen_consumo_id=almacenes[almacen_codigo].id,
+        )
+        db.session.add(producto)
+        db.session.flush()
+        for insumo_codigo, cantidad in receta:
+            db.session.add(
+                RecetaIngrediente(
+                    producto_id=producto.id,
+                    insumo_id=insumos[insumo_codigo].id,
+                    cantidad=cantidad,
+                )
+            )
+        cambios = True
+
+    if Mesa.query.count() == 0:
+        _crear_mesas()
+        cambios = True
+
+    if cambios:
+        db.session.commit()
+    return cambios

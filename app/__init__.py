@@ -7,8 +7,10 @@ from app.constants import (
     CATEGORIAS_GASTO,
     GUISADOS,
     MOTIVOS_MERMA,
+    MOTIVOS_MERMA_COMANDA,
     EstadoAsistencia,
     EstadoComanda,
+    EstadoMesa,
     EstadoPago,
     MetodoPago,
     Rol,
@@ -75,11 +77,13 @@ def _registrar_contexto(app):
             "TipoOrden": TipoOrden,
             "MetodoPago": MetodoPago,
             "EstadoComanda": EstadoComanda,
+            "EstadoMesa": EstadoMesa,
             "EstadoPago": EstadoPago,
             "EstadoAsistencia": EstadoAsistencia,
             "TipoMovimiento": TipoMovimiento,
             "CATEGORIAS_GASTO": CATEGORIAS_GASTO,
             "MOTIVOS_MERMA": MOTIVOS_MERMA,
+            "MOTIVOS_MERMA_COMANDA": MOTIVOS_MERMA_COMANDA,
             "GUISADOS": GUISADOS,
         }
 
@@ -93,6 +97,7 @@ def _registrar_blueprints(app):
     from app.blueprints.inventario import inventario_bp
     from app.blueprints.pos import pos_bp
     from app.blueprints.recetas import recetas_bp
+    from app.blueprints.reportes import reportes_bp
     from app.blueprints.rrhh import rrhh_bp
 
     app.register_blueprint(auth_bp)
@@ -104,6 +109,7 @@ def _registrar_blueprints(app):
     app.register_blueprint(contabilidad_bp)
     app.register_blueprint(rrhh_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(reportes_bp)
 
 
 def _registrar_manejadores_de_error(app):
@@ -122,7 +128,11 @@ def _preparar_base_de_datos(app):
     with app.app_context():
         if app.config.get("AUTO_CREAR_BD"):
             db.create_all()
-        if app.config.get("AUTO_SEMBRAR"):
-            from app.seed import seed_database
+            from app.migraciones import aplicar_migraciones
 
-            seed_database()
+            aplicar_migraciones()
+        if app.config.get("AUTO_SEMBRAR"):
+            from app.seed import seed_database, sincronizar_catalogo
+
+            if not seed_database():
+                sincronizar_catalogo()

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from app.constants import (
     CUENTA_CAJA,
     CUENTA_CXP,
@@ -8,9 +10,10 @@ from app.constants import (
     TipoMovimiento,
 )
 from app.extensions import db
-from app.models.inventario import Insumo, Merma, MovimientoInventario
+from app.models.inventario import AvisoFaltante, Insumo, Merma, MovimientoInventario
 from app.repositories.inventario_repository import (
     AlmacenRepositorio,
+    AvisoRepositorio,
     InsumoRepositorio,
     MermaRepositorio,
     MovimientoRepositorio,
@@ -21,13 +24,20 @@ from app.services.excepciones import DatosInvalidosError, StockInsuficienteError
 
 class InventarioService:
     def __init__(
-        self, insumos=None, almacenes=None, mermas=None, movimientos_repo=None, contabilidad=None
+        self,
+        insumos=None,
+        almacenes=None,
+        mermas=None,
+        movimientos_repo=None,
+        contabilidad=None,
+        avisos=None,
     ):
         self.insumos = insumos or InsumoRepositorio()
         self.almacenes = almacenes or AlmacenRepositorio()
         self.mermas = mermas or MermaRepositorio()
         self.movimientos_repo = movimientos_repo or MovimientoRepositorio()
         self.contabilidad = contabilidad or ContabilidadService()
+        self.avisos = avisos or AvisoRepositorio()
 
     def almacen_por_codigo(self, codigo):
         almacen = self.almacenes.por_codigo(codigo)
@@ -252,3 +262,45 @@ class InventarioService:
                 {"almacen": almacen, "stocks": self.insumos.stocks_por_almacen(almacen.id)}
             )
         return panel
+
+    def avisos_pendientes(self):
+        return self.avisos.pendientes()
+
+    def avisar_faltante(self, insumo_id, usuario_id=None, comentario=""):
+        insumo = self.insumos.obtener(insumo_id)
+        if insumo is None:
+            raise DatosInvalidosError("El insumo indicado no existe.")
+        existente = self.avisos.pendiente_de(insumo.id)
+        if existente is not None:
+            return existente
+        aviso = AvisoFaltante(
+            insumo_id=insumo.id,
+            comentario=(comentario or "").strip(),
+            usuario_id=usuario_id,
+        )
+        self.avisos.agregar(aviso)
+        db.session.commit()
+        return aviso
+
+    def resolver_faltante(self, aviso_id, usuario_id=None):
+        aviso = self.avisos.obtener(aviso_id)
+        if aviso is None:
+            raise DatosInvalidosError("El aviso indicado no existe.")
+        if aviso.resuelto:
+            raise DatosInvalidosError("El aviso ya fue resuelto.")
+        aviso.resuelto = True
+        aviso.resuelto_en = datetime.now()
+        aviso.resuelto_por_id = usuario_id
+        db.session.commit()
+        return aviso
+
+    def insumos_de_almacen(self, almacen_codigo):
+        almacen = self.almacen_por_codigo(almacen_codigo)
+        return [
+            {
+                "insumo": stock.insumo,
+                "stock": round(stock.cantidad, 4),
+                "aviso": self.avisos.pendiente_de(stock.insumo_id),
+            }
+            for stock in self.insumos.stocks_por_almacen(almacen.id)
+        ]

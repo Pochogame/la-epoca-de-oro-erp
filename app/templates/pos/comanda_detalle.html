@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block titulo %}Comanda {{ comanda.folio }} · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="mb-3">
+    <a href="{{ url_for('pos.index') }}" class="text-sm text-terracota font-bold hover:underline">← Volver al POS</a>
+</div>
+
+{% include "_comanda_detalle.html" %}
+
+<div class="flex gap-2 mt-5">
+    <a href="{{ url_for('pos.index') }}"
+       class="flex-1 text-center bg-white border border-cremaoscura font-bold py-3 rounded-xl hover:bg-crema transition">
+        ← Regresar
+    </a>
+    {% if comanda.estado in (EstadoComanda.ENTREGADA, EstadoComanda.MERMA) and not comanda.cerrada_en %}
+    <form method="post" action="{{ url_for('pos.cerrar_comanda', comanda_id=comanda.id) }}" class="flex-1">
+        <input type="hidden" name="volver" value="{{ url_for('pos.index') }}">
+        <button type="submit"
+                class="w-full bg-cafe hover:bg-cafeoscuro text-white font-bold py-3 rounded-xl transition">
+            ✅ Cerrar comanda
+        </button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}
