@@ -93,6 +93,7 @@ def _registrar_blueprints(app):
     from app.blueprints.auth import auth_bp
     from app.blueprints.cocina import cocina_bp
     from app.blueprints.contabilidad import contabilidad_bp
+    from app.blueprints.crm import crm_bp
     from app.blueprints.dashboard import dashboard_bp
     from app.blueprints.inventario import inventario_bp
     from app.blueprints.pos import pos_bp
@@ -110,6 +111,7 @@ def _registrar_blueprints(app):
     app.register_blueprint(rrhh_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(reportes_bp)
+    app.register_blueprint(crm_bp)
 
 
 def _registrar_manejadores_de_error(app):

@@ -39,7 +39,27 @@
             </div>
             <p class="text-xs font-bold mb-1">{{ EstadoMesa.ETIQUETAS[mesa.estado] }}</p>
             {% set activas = mesa.comandas_activas %}
-            {% if activas %}
+            {% set cuenta = mesa.cuenta_abierta %}
+            {% if cuenta %}
+            <p class="text-[11px] text-amber-800 font-bold mb-1">
+                💵 Cuenta {{ cuenta.folio }} · {{ cuenta.total | moneda }}
+                · {{ cuenta.rondas }} ronda{{ 's' if cuenta.rondas != 1 }}
+            </p>
+            {% if cuenta.cliente %}
+            <p class="text-[11px] text-cafe/70 mb-1">🧑 {{ cuenta.cliente.nombre }}</p>
+            {% endif %}
+            <a href="{{ url_for('pos.cuenta_detalle', cuenta_id=cuenta.id) }}"
+               class="block text-center text-xs font-bold bg-terracota text-white rounded-lg py-1.5 mb-1 hover:bg-terracota/80 transition">
+                💵 Cobrar y liberar mesa
+            </a>
+            <a href="{{ url_for('pos.index', mesa=mesa.id) }}"
+               class="block text-center text-xs font-bold bg-white border border-cremaoscura rounded-lg py-1.5 mb-1.5 hover:bg-crema transition">
+                ➕ Agregar ronda
+            </a>
+            <p class="text-[10px] text-cafe/50">
+                🔒 La mesa queda bloqueada hasta cobrar la cuenta.
+            </p>
+            {% elif activas %}
             <p class="text-[11px] text-cafe/70 mb-2">
                 🧾 {{ activas | length }} comanda{{ 's' if activas | length != 1 }}
                 · {{ activas[0].venta.mesero.nombre }}
@@ -48,13 +68,14 @@
             <p class="text-[11px] text-cafe/50 mb-2">Sin comandas activas</p>
             {% endif %}
 
-            {% if mesa.estado != EstadoMesa.OCUPADA %}
+            {% if not cuenta and mesa.estado != EstadoMesa.OCUPADA %}
             <a href="{{ url_for('pos.index', mesa=mesa.id) }}"
                class="block text-center text-xs font-bold bg-white border border-cremaoscura rounded-lg py-1.5 mb-1.5 hover:bg-crema transition">
                 ➕ Nuevo pedido
             </a>
             {% endif %}
 
+            {% if not cuenta %}
             <form method="post" action="{{ url_for('pos.cambiar_estado_mesa', mesa_id=mesa.id) }}" class="flex gap-1">
                 <select name="estado" class="flex-1 text-xs border border-cremaoscura rounded-lg px-2 py-1 bg-white">
                     {% for estado in EstadoMesa.TODOS %}
@@ -68,6 +89,7 @@
                     ✓
                 </button>
             </form>
+            {% endif %}
         </div>
         {% endfor %}
     </div>

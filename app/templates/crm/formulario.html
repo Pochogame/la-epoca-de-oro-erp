@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block titulo %}{{ 'Editar cliente' if cliente else 'Nuevo cliente' }} · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="max-w-2xl mx-auto">
+    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h1 class="font-clasica text-2xl font-bold">
+            {{ '✏️ Editar cliente' if cliente else '➕ Nuevo cliente' }}
+        </h1>
+        <a href="{{ url_for('crm.index') }}"
+           class="text-sm bg-white border border-cremaoscura px-4 py-2 rounded-xl font-bold hover:bg-crema transition">
+            ← Volver al CRM
+        </a>
+    </div>
+
+    <form method="post" class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5 space-y-4">
+        <div class="grid sm:grid-cols-2 gap-4">
+            <div class="sm:col-span-2">
+                <label class="block text-sm font-semibold mb-1" for="nombre">Nombre completo</label>
+                <input type="text" id="nombre" name="nombre" required maxlength="120"
+                       value="{{ cliente.nombre if cliente else '' }}"
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1" for="telefono">Teléfono</label>
+                <input type="tel" id="telefono" name="telefono" required maxlength="30"
+                       value="{{ cliente.telefono if cliente else '' }}"
+                       placeholder="4771234567"
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1" for="email">Correo (opcional)</label>
+                <input type="email" id="email" name="email" maxlength="120"
+                       value="{{ cliente.email if cliente else '' }}"
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1" for="cumpleanos">Cumpleaños (opcional)</label>
+                <input type="date" id="cumpleanos" name="cumpleanos"
+                       value="{{ cliente.cumpleanos.isoformat() if cliente and cliente.cumpleanos else '' }}"
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            {% if cliente %}
+            <div class="flex items-end">
+                <label class="flex items-center gap-2 text-sm font-semibold cursor-pointer">
+                    <input type="checkbox" name="activo" class="accent-terracota" {{ 'checked' if cliente.activo }}>
+                    Cliente activo
+                </label>
+            </div>
+            {% endif %}
+            <div class="sm:col-span-2">
+                <label class="block text-sm font-semibold mb-1" for="notas">Notas y preferencias</label>
+                <textarea id="notas" name="notas" rows="3"
+                          class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">{{ cliente.notas if cliente else '' }}</textarea>
+            </div>
+        </div>
+        <button type="submit" class="w-full bg-verde hover:bg-verde/80 text-white font-bold py-3 rounded-xl transition">
+            💾 Guardar cliente
+        </button>
+    </form>
+</div>
+{% endblock %}

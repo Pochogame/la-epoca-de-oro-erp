@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block titulo %}Ticket {{ cuenta.folio }} · La Época de Oro{% endblock %}
+
+{% block contenido %}
+<div class="flex items-center justify-between mb-4 no-print flex-wrap gap-2">
+    <a href="{{ url_for('pos.cuenta_detalle', cuenta_id=cuenta.id) }}" class="text-sm text-terracota font-bold hover:underline">
+        ← Volver a la cuenta
+    </a>
+    <div class="flex gap-2">
+        {% if cuenta.abierta %}
+        <span class="text-xs font-bold bg-amber-100 text-amber-900 px-3 py-2 rounded-xl border border-amber-300">
+            ⚠️ Cuenta abierta: este ticket aún no es el cobro final
+        </span>
+        {% endif %}
+        <button onclick="window.print()"
+                class="bg-cafe hover:bg-cafeoscuro text-white text-sm font-bold px-4 py-2 rounded-xl transition">
+            🖨️ Imprimir
+        </button>
+    </div>
+</div>
+
+<div class="flex justify-center">
+    <div class="ticket-papel w-full max-w-sm bg-white rounded-2xl shadow-xl border border-cremaoscura p-6 animar-entrada">
+        <div class="text-center border-b-2 border-dashed border-cremaoscura pb-4">
+            <p class="text-4xl">🎬</p>
+            <h1 class="font-clasica text-2xl font-bold text-cafe">La Época de Oro</h1>
+            <p class="text-xs text-terracota font-semibold tracking-widest uppercase">Café, Guisados y Nostalgia</p>
+        </div>
+
+        <div class="text-xs space-y-1 py-3 border-b-2 border-dashed border-cremaoscura">
+            <div class="flex justify-between"><span class="text-cafe/60">Cuenta</span><span class="font-bold">{{ cuenta.folio }}</span></div>
+            <div class="flex justify-between"><span class="text-cafe/60">Mesa</span><span>{{ cuenta.mesa.numero }} · {{ cuenta.mesa.zona }}</span></div>
+            <div class="flex justify-between"><span class="text-cafe/60">Abierta</span><span>{{ cuenta.abierta_en | fecha_hora }}</span></div>
+            {% if cuenta.cerrada_en %}
+            <div class="flex justify-between"><span class="text-cafe/60">Cobrada</span><span>{{ cuenta.cerrada_en | fecha_hora }}</span></div>
+            {% endif %}
+            <div class="flex justify-between"><span class="text-cafe/60">Atendió</span><span>{{ cuenta.abierta_por.nombre if cuenta.abierta_por else '—' }}</span></div>
+            {% if cuenta.cliente %}
+            <div class="flex justify-between"><span class="text-cafe/60">Cliente</span><span>{{ cuenta.cliente.nombre }}</span></div>
+            {% endif %}
+        </div>
+
+        {% for ronda in rondas %}
+        <div class="pt-3">
+            <p class="text-[10px] font-bold uppercase text-cafe/60 mb-1">
+                Ronda {{ ronda.numero }} · {{ ronda.venta.fecha | hora }}
+            </p>
+            <table class="w-full text-xs mb-1">
+                <tbody>
+                    {% for detalle in ronda.vigentes %}
+                    <tr class="border-b border-crema/60 align-top">
+                        <td class="py-1.5 w-8">{{ detalle.cantidad }}×</td>
+                        <td class="py-1.5">
+                            {{ detalle.producto_nombre }}
+                            {% if detalle.variante_nombre %}
+                            <span class="block text-[10px] text-verde font-bold">📏 {{ detalle.variante_nombre }}</span>
+                            {% endif %}
+                            {% if detalle.guisado %}
+                            <span class="block text-[10px] text-terracota font-bold">🍲 {{ detalle.guisado }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-1.5 text-right font-semibold whitespace-nowrap">{{ detalle.subtotal | moneda }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="text-right text-[10px] text-cafe/50 mb-1">Subtotal ronda: {{ ronda.subtotal | moneda }}</p>
+        </div>
+        {% endfor %}
+
+        <div class="border-t-2 border-dashed border-cremaoscura pt-3">
+            <div class="flex justify-between text-sm">
+                <span class="font-bold">TOTAL</span>
+                <span class="font-bold text-lg text-terracota">{{ total | moneda }}</span>
+            </div>
+            <div class="flex justify-between text-xs mt-1">
+                <span class="text-cafe/60">Método de pago</span>
+                <span class="font-semibold">
+                    {{ MetodoPago.ETIQUETAS.get(cuenta.metodo_pago, 'Por cobrar') if cuenta.metodo_pago else 'Por cobrar' }}
+                </span>
+            </div>
+        </div>
+
+        <div class="text-center text-[11px] text-cafe/70 mt-4 border-t-2 border-dashed border-cremaoscura pt-3">
+            <p class="font-clasica font-bold text-cafe">¡Gracias por su visita!</p>
+            <p>Lo esperamos pronto en La Época de Oro 🌟</p>
+            <p class="mt-1 text-[10px] text-cafe/50">Conserve su ticket · Precios en MXN</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

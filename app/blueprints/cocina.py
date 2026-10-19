@@ -20,8 +20,14 @@ from app.services.venta_service import VentaService
 cocina_bp = Blueprint("cocina", __name__, url_prefix="/cocina")
 
 
-def _firma_comandas(comandas):
-    return "|".join(f"{comanda.id}:{comanda.estado}" for comanda in comandas)
+def _firma_comandas(comandas, cancelaciones=()):
+    comandas_firma = "|".join(
+        f"{comanda.id}:{comanda.estado}" for comanda in comandas
+    )
+    cancelaciones_firma = "|".join(
+        str(cancelacion.id) for cancelacion in cancelaciones
+    )
+    return f"{comandas_firma}#{cancelaciones_firma}"
 
 
 @cocina_bp.route("/")
@@ -30,10 +36,12 @@ def index():
     ventas = VentaService()
     inventario = InventarioService()
     comandas = ventas.comandas_activas()
+    cancelaciones = ventas.cancelaciones_pendientes()
     return render_template(
         "cocina/index.html",
         comandas=comandas,
-        firma=_firma_comandas(comandas),
+        firma=_firma_comandas(comandas, cancelaciones),
+        cancelaciones=cancelaciones,
         historial=ventas.historial_comandas(10),
         avisos=inventario.avisos_pendientes(),
         motivos_merma=MOTIVOS_MERMA_COMANDA,
@@ -43,8 +51,16 @@ def index():
 @cocina_bp.route("/pulso")
 @role_required(Rol.CHEF_SUPERVISOR, Rol.ADMIN)
 def pulso():
-    comandas = VentaService().comandas_activas()
-    return jsonify({"activas": len(comandas), "firma": _firma_comandas(comandas)})
+    ventas = VentaService()
+    comandas = ventas.comandas_activas()
+    cancelaciones = ventas.cancelaciones_pendientes()
+    return jsonify(
+        {
+            "activas": len(comandas),
+            "cancelaciones": len(cancelaciones),
+            "firma": _firma_comandas(comandas, cancelaciones),
+        }
+    )
 
 
 @cocina_bp.route("/comanda/<int:comanda_id>")
@@ -106,13 +122,28 @@ def merma(comanda_id):
     return redirect(url_for("cocina.index"))
 
 
+@cocina_bp.route("/cancelacion/<int:cancelacion_id>/enterado", methods=["POST"])
+@role_required(Rol.CHEF_SUPERVISOR, Rol.ADMIN)
+def enterado_cancelacion(cancelacion_id):
+    try:
+        VentaService().marcar_cancelacion_atendida(
+            cancelacion_id, usuario_id=g.usuario.id
+        )
+    except ErrorDeNegocio as error:
+        db.session.rollback()
+        flash(error.mensaje, "error")
+    else:
+        flash("Aviso de cancelación marcado como atendido.", "exito")
+    return redirect(url_for("cocina.index"))
+
+
 @cocina_bp.route("/insumos")
 @role_required(Rol.CHEF_SUPERVISOR, Rol.ADMIN)
 def insumos():
     inventario = InventarioService()
     return render_template(
         "cocina/insumos.html",
-        filas=inventario.insumos_de_almacen("ALM-COC"),
+        filas=inventario.insumos_de_almacen(),
         avisos=inventario.avisos_pendientes(),
     )
 

@@ -35,7 +35,7 @@ def entrada():
                 insumo_id=request.form.get("insumo_id", type=int),
                 cantidad=request.form.get("cantidad", type=float),
                 costo_unitario=request.form.get("costo_unitario", type=float),
-                almacen_destino_id=request.form.get("almacen_destino_id", type=int),
+                almacen_destino_id=servicio.principal().id,
                 usuario_id=g.usuario.id,
                 estado_pago=request.form.get("estado_pago", EstadoPago.PAGADO),
                 referencia=request.form.get("referencia", ""),
@@ -50,34 +50,6 @@ def entrada():
     return render_template(
         "inventario/entrada.html",
         insumos=servicio.insumos.activos(),
-        almacenes=servicio.almacenes.todos_ordenados(),
-    )
-
-
-@inventario_bp.route("/transferencia", methods=["GET", "POST"])
-@role_required(Rol.CHEF_SUPERVISOR, Rol.ADMIN)
-def transferencia():
-    servicio = _servicio()
-    if request.method == "POST":
-        try:
-            servicio.transferir(
-                insumo_id=request.form.get("insumo_id", type=int),
-                almacen_origen_id=request.form.get("almacen_origen_id", type=int),
-                almacen_destino_id=request.form.get("almacen_destino_id", type=int),
-                cantidad=request.form.get("cantidad", type=float),
-                usuario_id=g.usuario.id,
-            )
-        except ErrorDeNegocio as error:
-            db.session.rollback()
-            flash(error.mensaje, "error")
-        else:
-            flash("Transferencia entre almacenes realizada.", "exito")
-            return redirect(url_for("inventario.index"))
-
-    return render_template(
-        "inventario/transferencia.html",
-        insumos=servicio.insumos.activos(),
-        almacenes=servicio.almacenes.todos_ordenados(),
     )
 
 
@@ -89,7 +61,7 @@ def merma():
         try:
             servicio.registrar_merma(
                 insumo_id=request.form.get("insumo_id", type=int),
-                almacen_id=request.form.get("almacen_id", type=int),
+                almacen_id=servicio.principal().id,
                 cantidad=request.form.get("cantidad", type=float),
                 motivo=request.form.get("motivo", ""),
                 comentario=request.form.get("comentario", ""),
@@ -105,7 +77,6 @@ def merma():
     return render_template(
         "inventario/mermas.html",
         insumos=servicio.insumos.activos(),
-        almacenes=servicio.almacenes.todos_ordenados(),
         motivos=MOTIVOS_MERMA,
         historial=servicio.mermas.recientes(30),
     )

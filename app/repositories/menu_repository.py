@@ -1,4 +1,4 @@
-from app.models.menu import Producto, RecetaIngrediente
+from app.models.menu import Producto, ProductoVariante, RecetaIngrediente
 from app.repositories.base import RepositorioBase
 
 
@@ -30,4 +30,15 @@ class ProductoRepositorio(RepositorioBase):
     def linea_receta(self, producto_id, insumo_id):
         return RecetaIngrediente.query.filter_by(
             producto_id=producto_id, insumo_id=insumo_id
+        ).first()
+
+    def variantes_de(self, producto_id, solo_activas=False):
+        consulta = ProductoVariante.query.filter_by(producto_id=producto_id)
+        if solo_activas:
+            consulta = consulta.filter(ProductoVariante.activo.is_(True))
+        return consulta.order_by(ProductoVariante.orden, ProductoVariante.id).all()
+
+    def variante_por_nombre(self, producto_id, nombre):
+        return ProductoVariante.query.filter_by(
+            producto_id=producto_id, nombre=nombre
         ).first()

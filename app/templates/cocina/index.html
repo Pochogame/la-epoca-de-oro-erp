@@ -34,6 +34,38 @@
 </div>
 {% endif %}
 
+{% if cancelaciones %}
+<div class="bg-red-50 border-2 border-red-300 rounded-2xl p-4 mb-5">
+    <p class="font-bold text-red-800 mb-2">🚫 Cancelaciones autorizadas por administrador</p>
+    <div class="space-y-2">
+        {% for cancelacion in cancelaciones %}
+        <div class="flex items-center justify-between gap-3 bg-white border border-red-200 rounded-xl px-3 py-2 flex-wrap">
+            <div>
+                <p class="font-bold text-sm text-red-800">
+                    {{ cancelacion.detalle.cantidad }}× {{ cancelacion.detalle.producto_nombre }}
+                    {% if cancelacion.detalle.variante_nombre %}· 📏 {{ cancelacion.detalle.variante_nombre }}{% endif %}
+                    {% if cancelacion.detalle.guisado %}· 🍲 {{ cancelacion.detalle.guisado }}{% endif %}
+                </p>
+                <p class="text-xs text-cafe/70">
+                    {{ cancelacion.comanda.folio }}
+                    {% if cancelacion.comanda.venta.mesa %}· 🪑 Mesa {{ cancelacion.comanda.venta.mesa.numero }}{% endif %}
+                    · Motivo: {{ cancelacion.motivo }}
+                    {% if cancelacion.autorizado_por %}· Autorizó: {{ cancelacion.autorizado_por.nombre }}{% endif %}
+                </p>
+            </div>
+            <form method="post" action="{{ url_for('cocina.enterado_cancelacion', cancelacion_id=cancelacion.id) }}">
+                <button type="submit"
+                        class="text-xs bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-2 rounded-lg transition">
+                    ✅ Enterado
+                </button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+    <p class="text-xs text-red-700 mt-2">No prepares estos platillos. Marca "Enterado" para retirar el aviso.</p>
+</div>
+{% endif %}
+
 {% if comandas %}
 {% for mesero, comandas_mesero in comandas | groupby('venta.mesero.nombre') %}
 <section class="mb-7">
@@ -49,11 +81,20 @@
                     {{ 'border-amber-300 bg-amber-50' if comanda.estado == EstadoComanda.EN_PREPARACION else 'border-verde bg-verdementa' }}">
             <div class="flex items-start justify-between gap-2">
                 <div>
-                    <h3 class="font-clasica text-lg font-bold">{{ comanda.folio }}</h3>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h3 class="font-clasica text-lg font-bold">{{ comanda.folio }}</h3>
+                        {% if comanda.venta.cuenta %}
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full
+                            {{ 'bg-dorado/40 text-cafe' if comanda.ronda == 1 else 'bg-terracota text-white' }}">
+                            RONDA {{ comanda.ronda }}{{ ' · ADICIÓN' if comanda.ronda > 1 }}
+                        </span>
+                        {% endif %}
+                    </div>
                     <p class="text-xs text-cafe/70">
                         {{ TipoOrden.ICONOS[comanda.tipo_orden] }} {{ TipoOrden.ETIQUETAS[comanda.tipo_orden] }}
                         · {{ Turno.ICONOS[comanda.turno] }} {{ Turno.ETIQUETAS[comanda.turno] }}
                         {% if comanda.venta.mesa %}· 🪑 Mesa {{ comanda.venta.mesa.numero }}{% endif %}
+                        {% if comanda.venta.cuenta %}· 💵 {{ comanda.venta.cuenta.folio }}{% endif %}
                     </p>
                     <p class="text-xs text-cafe/70 mt-0.5">
                         🕐 {{ comanda.creada | hora }}
@@ -71,12 +112,18 @@
             <table class="w-full text-sm mt-3">
                 <tbody>
                     {% for detalle in comanda.venta.detalles %}
-                    <tr class="border-t border-black/5">
-                        <td class="py-1.5 pr-2 font-bold w-8">{{ detalle.cantidad }}×</td>
-                        <td class="py-1.5">
+                    <tr class="border-t border-black/5 {{ 'opacity-50' if detalle.cancelado }}">
+                        <td class="py-1.5 pr-2 font-bold w-8 {{ 'line-through' if detalle.cancelado }}">{{ detalle.cantidad }}×</td>
+                        <td class="py-1.5 {{ 'line-through' if detalle.cancelado }}">
                             {{ detalle.producto_nombre }}
+                            {% if detalle.variante_nombre %}
+                            <span class="block text-xs text-verde font-bold">📏 {{ detalle.variante_nombre }}</span>
+                            {% endif %}
                             {% if detalle.guisado %}
                             <span class="block text-xs text-terracota font-bold">🍲 Guisado: {{ detalle.guisado }}</span>
+                            {% endif %}
+                            {% if detalle.cancelado %}
+                            <span class="block text-[10px] text-red-700 font-bold no-underline">🚫 CANCELADO</span>
                             {% endif %}
                         </td>
                     </tr>

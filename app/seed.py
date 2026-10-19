@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 
 from app.constants import (
     CATALOGO_CUENTAS,
@@ -10,8 +10,9 @@ from app.constants import (
 )
 from app.extensions import db
 from app.models.contabilidad import CuentaContable
+from app.models.crm import Cliente
 from app.models.inventario import Almacen, Insumo, StockAlmacen
-from app.models.menu import Producto, RecetaIngrediente
+from app.models.menu import Producto, ProductoVariante, RecetaIngrediente
 from app.models.usuario import Usuario
 from app.models.ventas import Mesa
 from app.services.contabilidad_service import ContabilidadService
@@ -62,9 +63,7 @@ USUARIOS_SEMILLA = (
 )
 
 ALMACENES_SEMILLA = (
-    ("ALM-MP", "Materia Prima", "Bodega general de insumos sin procesar."),
-    ("ALM-COC", "Cocina / Barra", "Insumos listos para preparación en cocina."),
-    ("ALM-POS", "Mostrador (POS)", "Productos terminados listos para venta en mostrador."),
+    ("ALM-MP", "Almacén principal", "Inventario único de insumos y productos."),
 )
 
 INSUMOS_SEMILLA = (
@@ -217,8 +216,8 @@ PRODUCTOS_SEMILLA = (
         ),
     ),
     (
-        "TAR-TACOS", "Orden de Tacos (3 pzas)", "Antojitos (Tacos y Tortas)", 75.0, Turno.TARDE, True, "ALM-COC",
-        (("INS-TOR", 0.15), ("INS-CEB", 0.01), ("INS-LIM", 0.01)),
+        "TAR-TACOS", "Taco (por pieza)", "Antojitos (Tacos y Tortas)", 13.0, Turno.TARDE, True, "ALM-COC",
+        (("INS-TOR", 0.05), ("INS-CEB", 0.003), ("INS-LIM", 0.003)),
     ),
     (
         "TAR-TORTA", "Torta Tradicional de Guisado", "Antojitos (Tacos y Tortas)", 65.0, Turno.TARDE, True, "ALM-COC",
@@ -270,6 +269,28 @@ MESAS_SEMILLA = (
     (11, "Barra"), (12, "Barra"),
 )
 
+VARIANTES_SEMILLA = {
+    "TAR-POZOLE": (
+        ("Chico", 80.0, 0.75),
+        ("Mediano", 95.0, 1.0),
+        ("Grande", 110.0, 1.3),
+    ),
+    "TAR-MENUDO": (
+        ("Chico", 95.0, 0.75),
+        ("Mediano", 110.0, 1.0),
+        ("Grande", 125.0, 1.3),
+    ),
+    "TAR-AGU-JAM": (("Medio", 20.0, 0.5), ("Litro", 35.0, 1.0)),
+    "TAR-AGU-HOR": (("Medio", 20.0, 0.5), ("Litro", 35.0, 1.0)),
+    "TAR-AGU-PEP": (("Medio", 20.0, 0.5), ("Litro", 35.0, 1.0)),
+}
+
+CLIENTES_SEMILLA = (
+    ("María López", "4771234567", "maria.lopez@example.com", date(1990, 5, 14), "Prefiere mesa de terraza."),
+    ("Carlos Ramírez", "4779876543", "carlos.ramirez@example.com", date(1985, 11, 2), "Cliente frecuente de comida corrida."),
+    ("Ana Torres", "4775551234", "ana.torres@example.com", date(1998, 8, 21), "Pide pozole sin cebolla."),
+)
+
 
 def _crear_usuarios():
     for datos in USUARIOS_SEMILLA:
@@ -292,7 +313,7 @@ def _crear_almacenes():
 
 
 def _crear_insumos_y_stock():
-    almacenes = {almacen.codigo: almacen for almacen in Almacen.query.all()}
+    principal = Almacen.query.filter_by(codigo="ALM-MP").first()
     for codigo, nombre, unidad, costo, minimo, stock_mp, stock_coc, stock_pos in INSUMOS_SEMILLA:
         insumo = Insumo(
             codigo=codigo,
@@ -303,26 +324,40 @@ def _crear_insumos_y_stock():
         )
         db.session.add(insumo)
         db.session.flush()
-        for almacen_codigo, cantidad in (
-            ("ALM-MP", stock_mp),
-            ("ALM-COC", stock_coc),
-            ("ALM-POS", stock_pos),
-        ):
-            if cantidad > 0:
-                db.session.add(
-                    StockAlmacen(
-                        insumo_id=insumo.id,
-                        almacen_id=almacenes[almacen_codigo].id,
-                        cantidad=cantidad,
-                    )
+        total = stock_mp + stock_coc + stock_pos
+        if total > 0:
+            db.session.add(
+                StockAlmacen(
+                    insumo_id=insumo.id,
+                    almacen_id=principal.id,
+                    cantidad=total,
                 )
+            )
     db.session.commit()
 
 
+def _crear_variantes(producto, variantes):
+    for orden, (nombre, precio, factor) in enumerate(variantes):
+        existente = ProductoVariante.query.filter_by(
+            producto_id=producto.id, nombre=nombre
+        ).first()
+        if existente is not None:
+            continue
+        db.session.add(
+            ProductoVariante(
+                producto_id=producto.id,
+                nombre=nombre,
+                precio=precio,
+                factor_receta=factor,
+                orden=orden,
+            )
+        )
+
+
 def _crear_productos_y_recetas():
-    almacenes = {almacen.codigo: almacen for almacen in Almacen.query.all()}
+    principal = Almacen.query.filter_by(codigo="ALM-MP").first()
     insumos = {insumo.codigo: insumo for insumo in Insumo.query.all()}
-    for codigo, nombre, categoria, precio, turno, requiere_guisado, almacen_codigo, receta in PRODUCTOS_SEMILLA:
+    for codigo, nombre, categoria, precio, turno, requiere_guisado, _, receta in PRODUCTOS_SEMILLA:
         producto = Producto(
             codigo=codigo,
             nombre=nombre,
@@ -330,7 +365,7 @@ def _crear_productos_y_recetas():
             precio=precio,
             turno=turno,
             requiere_guisado=requiere_guisado,
-            almacen_consumo_id=almacenes[almacen_codigo].id,
+            almacen_consumo_id=principal.id,
         )
         db.session.add(producto)
         db.session.flush()
@@ -342,6 +377,23 @@ def _crear_productos_y_recetas():
                     cantidad=cantidad,
                 )
             )
+        _crear_variantes(producto, VARIANTES_SEMILLA.get(codigo, ()))
+    db.session.commit()
+
+
+def _crear_clientes():
+    for nombre, telefono, email, cumpleanos, notas in CLIENTES_SEMILLA:
+        if Cliente.query.filter_by(telefono=telefono).first() is not None:
+            continue
+        db.session.add(
+            Cliente(
+                nombre=nombre,
+                telefono=telefono,
+                email=email,
+                cumpleanos=cumpleanos,
+                notas=notas,
+            )
+        )
     db.session.commit()
 
 
@@ -408,35 +460,35 @@ def _crear_asistencias_ejemplo():
 
 def _crear_ventas_ejemplo(admin_id):
     ventas = VentaService()
-    insumos = {insumo.codigo: insumo for insumo in Insumo.query.all()}
     productos = {producto.codigo: producto for producto in Producto.query.all()}
+    clientes = {cliente.nombre: cliente for cliente in Cliente.query.all()}
 
     ventas_demo = (
         (
-            "mesero1", Turno.MANANA, "AQUI", "EFECTIVO",
+            "mesero1", Turno.MANANA, "AQUI", "EFECTIVO", "María López",
             (
                 {"producto_id": productos["BEB-CAF-AM"].id, "cantidad": 2},
                 {"producto_id": productos["PAN-CONCHA"].id, "cantidad": 3},
             ),
         ),
         (
-            "mesero2", Turno.MANANA, "LLEVAR", "TARJETA",
+            "mesero2", Turno.MANANA, "LLEVAR", "TARJETA", "Carlos Ramírez",
             (
                 {"producto_id": productos["FRI-FRAP-MOKA"].id, "cantidad": 1},
                 {"producto_id": productos["PAN-CUERNITO"].id, "cantidad": 2},
             ),
         ),
         (
-            "mesero1", Turno.TARDE, "AQUI", "EFECTIVO",
+            "mesero1", Turno.TARDE, "AQUI", "EFECTIVO", "Ana Torres",
             (
-                {"producto_id": productos["TAR-TACOS"].id, "cantidad": 1, "guisado": "Barbacoa"},
-                {"producto_id": productos["TAR-POZOLE"].id, "cantidad": 1},
+                {"producto_id": productos["TAR-TACOS"].id, "cantidad": 3, "guisado": "Barbacoa"},
+                {"producto_id": productos["TAR-POZOLE"].id, "cantidad": 1, "variante_nombre": "Grande"},
             ),
         ),
     )
 
     meseros = {usuario.username: usuario for usuario in Usuario.query.all()}
-    for username, turno, tipo, metodo, items in ventas_demo:
+    for username, turno, tipo, metodo, cliente_nombre, items in ventas_demo:
         venta = ventas.registrar_venta(
             mesero_id=meseros[username].id,
             turno=turno,
@@ -444,6 +496,7 @@ def _crear_ventas_ejemplo(admin_id):
             metodo_pago=metodo,
             items=list(items),
             usuario_id=meseros[username].id,
+            cliente_id=clientes[cliente_nombre].id if cliente_nombre in clientes else None,
         )
         comanda = venta.comanda
         comanda.estado = EstadoComanda.ENTREGADA
@@ -465,6 +518,7 @@ def seed_database(reset=False):
     _crear_almacenes()
     _crear_insumos_y_stock()
     _crear_productos_y_recetas()
+    _crear_clientes()
     _crear_mesas()
     _crear_catalogo_contable()
     admin = Usuario.query.filter_by(username="admin").first()
@@ -481,8 +535,10 @@ def sincronizar_catalogo():
         return False
 
     cambios = False
-    almacenes = {almacen.codigo: almacen for almacen in Almacen.query.all()}
-    if not almacenes:
+    principal = Almacen.query.filter_by(codigo="ALM-MP").first()
+    if principal is None:
+        principal = Almacen.query.order_by(Almacen.id).first()
+    if principal is None:
         return False
 
     for codigo, nombre, unidad, costo, minimo, stock_mp, stock_coc, stock_pos in INSUMOS_SEMILLA:
@@ -493,24 +549,42 @@ def sincronizar_catalogo():
         )
         db.session.add(insumo)
         db.session.flush()
-        for almacen_codigo, cantidad in (
-            ("ALM-MP", stock_mp),
-            ("ALM-COC", stock_coc),
-            ("ALM-POS", stock_pos),
-        ):
-            if cantidad > 0:
-                db.session.add(
-                    StockAlmacen(
-                        insumo_id=insumo.id,
-                        almacen_id=almacenes[almacen_codigo].id,
-                        cantidad=cantidad,
-                    )
+        total = stock_mp + stock_coc + stock_pos
+        if total > 0:
+            db.session.add(
+                StockAlmacen(
+                    insumo_id=insumo.id,
+                    almacen_id=principal.id,
+                    cantidad=total,
                 )
+            )
         cambios = True
 
     insumos = {insumo.codigo: insumo for insumo in Insumo.query.all()}
-    for codigo, nombre, categoria, precio, turno, requiere_guisado, almacen_codigo, receta in PRODUCTOS_SEMILLA:
-        if Producto.query.filter_by(codigo=codigo).first() is not None:
+    for codigo, nombre, categoria, precio, turno, requiere_guisado, _, receta in PRODUCTOS_SEMILLA:
+        producto = Producto.query.filter_by(codigo=codigo).first()
+        if producto is not None:
+            if (
+                codigo == "TAR-TACOS"
+                and producto.nombre == "Orden de Tacos (3 pzas)"
+                and producto.precio == 75.0
+            ):
+                producto.nombre = nombre
+                producto.precio = precio
+                db.session.flush()
+                for insumo_codigo, cantidad in receta:
+                    linea = RecetaIngrediente.query.filter_by(
+                        producto_id=producto.id, insumo_id=insumos[insumo_codigo].id
+                    ).first()
+                    if linea is not None:
+                        linea.cantidad = cantidad
+                cambios = True
+            if codigo in VARIANTES_SEMILLA and not producto.variantes:
+                _crear_variantes(producto, VARIANTES_SEMILLA[codigo])
+                cambios = True
+            if producto.almacen_consumo_id != principal.id:
+                producto.almacen_consumo_id = principal.id
+                cambios = True
             continue
         producto = Producto(
             codigo=codigo,
@@ -519,7 +593,7 @@ def sincronizar_catalogo():
             precio=precio,
             turno=turno,
             requiere_guisado=requiere_guisado,
-            almacen_consumo_id=almacenes[almacen_codigo].id,
+            almacen_consumo_id=principal.id,
         )
         db.session.add(producto)
         db.session.flush()
@@ -531,6 +605,7 @@ def sincronizar_catalogo():
                     cantidad=cantidad,
                 )
             )
+        _crear_variantes(producto, VARIANTES_SEMILLA.get(codigo, ()))
         cambios = True
 
     if Mesa.query.count() == 0:

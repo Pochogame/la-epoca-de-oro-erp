@@ -24,15 +24,7 @@
                 </select>
             </div>
             <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-sm font-semibold mb-1">Almacén</label>
-                    <select name="almacen_id" required class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
-                        {% for almacen in almacenes %}
-                        <option value="{{ almacen.id }}">{{ almacen.codigo }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
+                <div class="col-span-2">
                     <label class="block text-sm font-semibold mb-1">Cantidad</label>
                     <input type="number" name="cantidad" step="0.001" min="0.001" required
                            class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">

@@ -26,6 +26,9 @@
             <div class="flex justify-between"><span class="text-cafe/60">Atendió</span><span>{{ venta.mesero.nombre }}</span></div>
             <div class="flex justify-between"><span class="text-cafe/60">Turno</span><span>{{ Turno.ICONOS[venta.turno] }} {{ Turno.ETIQUETAS[venta.turno] }}</span></div>
             <div class="flex justify-between"><span class="text-cafe/60">Modalidad</span><span>{{ TipoOrden.ICONOS[venta.tipo_orden] }} {{ TipoOrden.ETIQUETAS[venta.tipo_orden] }}</span></div>
+            {% if venta.cliente %}
+            <div class="flex justify-between"><span class="text-cafe/60">Cliente</span><span>{{ venta.cliente.nombre }}</span></div>
+            {% endif %}
         </div>
 
         <table class="w-full text-xs my-3">
@@ -42,6 +45,9 @@
                     <td class="py-1.5">{{ detalle.cantidad }}</td>
                     <td class="py-1.5">
                         {{ detalle.producto_nombre }}
+                        {% if detalle.variante_nombre %}
+                        <span class="block text-[10px] text-verde font-bold">📏 {{ detalle.variante_nombre }}</span>
+                        {% endif %}
                         {% if detalle.guisado %}
                         <span class="block text-[10px] text-terracota font-bold">🍲 {{ detalle.guisado }}</span>
                         {% endif %}

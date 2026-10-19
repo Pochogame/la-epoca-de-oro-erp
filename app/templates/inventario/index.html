@@ -5,12 +5,11 @@
 {% block contenido %}
 <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
     <div>
-        <h1 class="font-clasica text-2xl font-bold">📦 Inventario y almacenes</h1>
-        <p class="text-sm text-cafe/70">Tres almacenes: materia prima, cocina/barra y mostrador</p>
+        <h1 class="font-clasica text-2xl font-bold">📦 Inventario</h1>
+        <p class="text-sm text-cafe/70">Un solo almacén principal para insumos y productos.</p>
     </div>
     <div class="flex flex-wrap gap-2 text-sm">
         <a href="{{ url_for('inventario.entrada') }}" class="bg-verde hover:bg-verde/80 text-white px-3 py-2 rounded-xl font-semibold">➕ Entrada</a>
-        <a href="{{ url_for('inventario.transferencia') }}" class="bg-cafe hover:bg-cafeoscuro text-white px-3 py-2 rounded-xl font-semibold">🔁 Transferir</a>
         <a href="{{ url_for('inventario.merma') }}" class="bg-terracota hover:bg-terracotaoscuro text-white px-3 py-2 rounded-xl font-semibold">🗑️ Merma</a>
         <a href="{{ url_for('inventario.insumos') }}" class="bg-white border border-cremaoscura hover:bg-crema px-3 py-2 rounded-xl font-semibold">📋 Insumos</a>
         <a href="{{ url_for('inventario.movimientos') }}" class="bg-white border border-cremaoscura hover:bg-crema px-3 py-2 rounded-xl font-semibold">🧾 Movimientos</a>

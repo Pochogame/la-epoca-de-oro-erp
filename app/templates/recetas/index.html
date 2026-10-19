@@ -7,7 +7,7 @@
     <div>
         <h1 class="font-clasica text-2xl font-bold">📖 Recetas y productos (BOM)</h1>
         <p class="text-sm text-cafe/70">
-            Cada venta descuenta automáticamente los insumos definidos aquí en el almacén de consumo del producto.
+            Cada venta descuenta automáticamente los insumos definidos aquí en el almacén principal.
         </p>
     </div>
 </div>
@@ -36,12 +36,9 @@
                 <input type="text" name="categoria" required list="categorias-sugeridas"
                        class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
                 <datalist id="categorias-sugeridas">
-                    <option value="Bebidas Calientes"></option>
-                    <option value="Barra Fría (Frappés y Smoothies)"></option>
-                    <option value="Panadería y Repostería"></option>
-                    <option value="Almuerzos Caseros"></option>
-                    <option value="Platillos de Cuchara"></option>
-                    <option value="Antojitos (Tacos y Tortas)"></option>
+                    {% for categoria in categorias %}
+                    <option value="{{ categoria }}"></option>
+                    {% endfor %}
                 </datalist>
             </div>
             <div>
@@ -49,14 +46,6 @@
                 <select name="turno" class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
                     {% for turno in turnos %}
                     <option value="{{ turno }}">{{ Turno.ICONOS[turno] }} {{ Turno.ETIQUETAS[turno] }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-semibold mb-1">Almacén de consumo</label>
-                <select name="almacen_consumo_id" required class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
-                    {% for almacen in almacenes %}
-                    <option value="{{ almacen.id }}">{{ almacen.codigo }} · {{ almacen.nombre }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -125,9 +114,29 @@
             </span>
         </div>
         <div class="flex justify-between text-xs mt-2 mb-2">
-            <span>Precio: <b class="text-terracota">{{ producto.precio | moneda }}</b></span>
+            <span>
+                {% if producto.tiene_variantes %}
+                Precio desde: <b class="text-terracota">{{ producto.precio_desde | moneda }}</b>
+                {% else %}
+                Precio: <b class="text-terracota">{{ producto.precio | moneda }}</b>
+                {% endif %}
+            </span>
             <span>Costo receta: <b>{{ producto.costo_receta | moneda }}</b></span>
         </div>
+        {% if producto.tiene_variantes %}
+        <div class="flex flex-wrap gap-1 mb-2">
+            {% for variante in producto.variantes_activas %}
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full
+                {{ 'bg-verdementa text-verde' if variante.activo else 'bg-cremaoscura text-cafe/50' }}">
+                {{ variante.nombre }} · {{ variante.precio | moneda }}
+            </span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <a href="{{ url_for('recetas.editar_producto', producto_id=producto.id) }}"
+           class="inline-block text-xs font-bold text-terracota hover:underline mb-2">
+            ✏️ Editar producto, precio y tamaños
+        </a>
         {% set filas = recetas[producto.id] %}
         {% if filas %}
         {% set agotados = filas | selectattr('estado', 'equalto', 'AGOTADO') | list %}

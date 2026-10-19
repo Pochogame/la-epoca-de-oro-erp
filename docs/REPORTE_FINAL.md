@@ -79,6 +79,21 @@ python -m venv .venv
 .\.venv\Scripts\python.exe run.py    # http://127.0.0.1:5000
 ```
 
+## Actualización posterior a la entrega inicial
+
+Las iteraciones siguientes ampliaron el alcance sin cambiar la arquitectura por capas:
+
+- Cuentas de mesa por rondas con cobro consolidado, cancelación autorizada de platillos y
+  tickets de cuenta.
+- Tamaños/variantes por producto con precio y factor de receta propios (pozole, menudo y
+  aguas), taco individual de $13 y edición de menú/precios desde Recetas.
+- Inventario simplificado a un solo almacén principal; la migración consolida
+  automáticamente el stock de los almacenes anteriores y es idempotente.
+- Aviso de faltantes parciales en el POS con opción de quitar líneas y continuar.
+- CRM básico de clientes con historial, métricas y asociación de cliente a ventas y cuentas.
+- Suite actual: **75 pruebas de integración en verde**; la migración se verificó sobre una
+  copia de la base real y en una segunda carga para comprobar idempotencia.
+
 ## Notas y limitaciones
 
 - La recuperación de contraseña valida usuario + correo contra la base de datos, pero no

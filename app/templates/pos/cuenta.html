@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block titulo %}Cuenta {{ cuenta.folio }} · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="flex items-center justify-between mb-4 flex-wrap gap-3 no-print">
+    <div>
+        <h1 class="font-clasica text-2xl font-bold">💵 Cuenta {{ cuenta.folio }}</h1>
+        <p class="text-sm text-cafe/70">
+            🪑 Mesa {{ cuenta.mesa.numero }} · {{ cuenta.mesa.zona }}
+            · Abierta {{ cuenta.abierta_en | fecha_hora }}
+            {% if cuenta.abierta_por %}· por {{ cuenta.abierta_por.nombre }}{% endif %}
+            {% if cuenta.cliente %}· 🧑 {{ cuenta.cliente.nombre }}{% endif %}
+        </p>
+    </div>
+    <div class="flex gap-2 flex-wrap">
+        <a href="{{ url_for('pos.mesas') }}"
+           class="text-sm bg-white border border-cremaoscura px-4 py-2 rounded-xl font-bold hover:bg-crema transition">
+            🪑 Mapa de mesas
+        </a>
+        {% if cuenta.abierta %}
+        <a href="{{ url_for('pos.index', mesa=cuenta.mesa_id) }}"
+           class="text-sm bg-terracota text-white px-4 py-2 rounded-xl font-bold hover:bg-terracota/80 transition">
+            ➕ Agregar ronda
+        </a>
+        {% else %}
+        <a href="{{ url_for('pos.cuenta_ticket', cuenta_id=cuenta.id) }}"
+           class="text-sm bg-cafe text-white px-4 py-2 rounded-xl font-bold hover:bg-cafeoscuro transition">
+            🖨️ Ver ticket
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+{% if cuenta.abierta %}
+<div class="bg-dorado/20 border border-dorado rounded-2xl p-3 mb-4 text-sm text-cafe">
+    🍽️ Esta cuenta acumula todas las rondas de la mesa. El cobro se registra una sola vez al cerrarla.
+</div>
+{% else %}
+<div class="bg-verdementa border border-verde rounded-2xl p-3 mb-4 text-sm text-verde">
+    ✅ Cuenta cobrada el {{ cuenta.cerrada_en | fecha_hora }}
+    · {{ MetodoPago.ETIQUETAS.get(cuenta.metodo_pago, cuenta.metodo_pago) }}
+    {% if cuenta.cerrada_por %}· por {{ cuenta.cerrada_por.nombre }}{% endif %}
+</div>
+{% endif %}
+
+<div class="grid lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2 space-y-4">
+        {% for ronda in rondas %}
+        <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+            <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+                <div>
+                    <h2 class="font-clasica text-lg font-bold">
+                        Ronda {{ ronda.numero }}
+                        {% if ronda.numero > 1 %}
+                        <span class="text-[10px] align-middle bg-terracota text-white px-2 py-0.5 rounded-full font-bold">ADICIÓN</span>
+                        {% endif %}
+                    </h2>
+                    <p class="text-xs text-cafe/60">
+                        {{ ronda.venta.folio }} · {{ ronda.venta.fecha | hora }}
+                        {% if ronda.comanda %}· {{ ronda.comanda.folio }}{% endif %}
+                        · {{ TipoOrden.ETIQUETAS[ronda.venta.tipo_orden] }}
+                    </p>
+                </div>
+                <div class="flex items-center gap-2">
+                    {% if ronda.comanda %}
+                    <span class="text-[10px] font-bold px-2 py-1 rounded-full
+                        {{ 'bg-amber-200 text-amber-900' if ronda.comanda.estado == EstadoComanda.EN_PREPARACION }}
+                        {{ 'bg-verde text-white' if ronda.comanda.estado == EstadoComanda.LISTA }}
+                        {{ 'bg-verdementa text-verde' if ronda.comanda.estado == EstadoComanda.ENTREGADA }}
+                        {{ 'bg-red-100 text-red-800' if ronda.comanda.estado == EstadoComanda.MERMA }}">
+                        {{ EstadoComanda.ETIQUETAS[ronda.comanda.estado] }}
+                    </span>
+                    {% endif %}
+                    <span class="font-bold text-terracota">{{ ronda.subtotal | moneda }}</span>
+                </div>
+            </div>
+
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-xs uppercase text-cafe/60 border-b border-cremaoscura">
+                        <th class="py-1.5">Cant.</th>
+                        <th class="py-1.5">Producto</th>
+                        <th class="py-1.5 text-right">Importe</th>
+                        <th class="py-1.5 text-right">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for detalle in ronda.detalles %}
+                    <tr class="border-b border-crema/60 align-top {{ 'opacity-60' if detalle.cancelado }}">
+                        <td class="py-1.5 {{ 'line-through' if detalle.cancelado }}">{{ detalle.cantidad }}</td>
+                        <td class="py-1.5 {{ 'line-through' if detalle.cancelado }}">
+                            {{ detalle.producto_nombre }}
+                            {% if detalle.variante_nombre %}
+                            <span class="block text-xs text-verde font-bold">📏 {{ detalle.variante_nombre }}</span>
+                            {% endif %}
+                            {% if detalle.guisado %}
+                            <span class="block text-xs text-terracota font-bold">🍲 {{ detalle.guisado }}</span>
+                            {% endif %}
+                            {% if detalle.cancelado %}
+                            <span class="block text-[10px] text-red-700 font-semibold no-underline">
+                                🚫 Cancelado: {{ detalle.motivo_cancelacion }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-1.5 text-right {{ 'line-through' if detalle.cancelado }}">{{ detalle.subtotal | moneda }}</td>
+                        <td class="py-1.5 text-right">
+                            {% if cuenta.abierta and not detalle.cancelado %}
+                            <button type="button"
+                                    class="text-xs font-bold text-red-700 border border-red-300 bg-red-50 hover:bg-red-100 rounded-lg px-2 py-1 transition boton-cancelar-detalle"
+                                    data-accion="{{ url_for('pos.cancelar_detalle', detalle_id=detalle.id) }}"
+                                    data-producto="{{ detalle.producto_nombre }} ({{ detalle.cantidad }}×)">
+                                🚫 Cancelar
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+        {% else %}
+        <div class="bg-white rounded-2xl border border-cremaoscura p-8 text-center text-cafe/60">
+            La cuenta no tiene rondas vigentes.
+        </div>
+        {% endfor %}
+    </div>
+
+    <aside class="lg:sticky lg:top-4 h-fit space-y-4">
+        <div class="bg-white rounded-2xl border border-cremaoscura shadow-lg p-5">
+            <p class="text-xs font-bold uppercase text-cafe/60">Total de la mesa</p>
+            <p class="text-3xl font-bold text-terracota mt-1">{{ total | moneda }}</p>
+            <p class="text-xs text-cafe/60 mt-1">
+                {{ rondas | length }} ronda{{ 's' if rondas | length != 1 }}
+                · {{ cuenta.mesa.numero }} mesa
+            </p>
+
+            {% if comandas_activas %}
+            <div class="bg-amber-50 border border-amber-300 rounded-xl p-3 mt-4 text-xs text-amber-900">
+                <b>⏳ Platillos en cocina:</b>
+                {% for comanda in comandas_activas %}
+                <span class="inline-block bg-white border border-amber-200 rounded-full px-2 py-0.5 mr-1 mt-1 font-semibold">
+                    {{ comanda.folio }} · {{ EstadoComanda.ETIQUETAS[comanda.estado] }}
+                </span>
+                {% endfor %}
+                <p class="mt-2">No se puede cobrar hasta que se entreguen o se registren como merma.</p>
+            </div>
+            {% endif %}
+
+            {% if cuenta.abierta %}
+            <form method="post" action="{{ url_for('pos.cobrar_cuenta', cuenta_id=cuenta.id) }}" class="mt-4 space-y-3">
+                <div>
+                    <label class="text-xs font-bold uppercase text-cafe/60" for="cliente_id">Cliente (opcional)</label>
+                    <select name="cliente_id" id="cliente_id"
+                            class="w-full border border-cremaoscura rounded-lg px-3 py-2 mt-1 bg-crema/40">
+                        <option value="">— Sin cliente —</option>
+                        {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}" {{ 'selected' if cuenta.cliente_id == cliente.id }}>
+                            {{ cliente.nombre }} · {{ cliente.telefono }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold uppercase text-cafe/60" for="metodo_pago">Método de pago</label>
+                    <select name="metodo_pago" id="metodo_pago"
+                            class="w-full border border-cremaoscura rounded-lg px-3 py-2 mt-1 bg-crema/40">
+                        {% for metodo in [MetodoPago.EFECTIVO, MetodoPago.TARJETA, MetodoPago.TRANSFERENCIA] %}
+                        <option value="{{ metodo }}">{{ MetodoPago.ETIQUETAS[metodo] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit"
+                        class="w-full bg-verde hover:bg-verde/80 text-white font-bold py-3 rounded-xl transition shadow disabled:opacity-40 disabled:cursor-not-allowed"
+                        {{ 'disabled' if not puede_cobrar }}>
+                    💵 Cobrar y liberar mesa
+                </button>
+                {% if not puede_cobrar %}
+                <p class="text-[11px] text-cafe/60 text-center">Termina las comandas activas para poder cobrar.</p>
+                {% endif %}
+            </form>
+            {% else %}
+            <a href="{{ url_for('pos.cuenta_ticket', cuenta_id=cuenta.id) }}"
+               class="block text-center w-full bg-cafe hover:bg-cafeoscuro text-white font-bold py-3 rounded-xl transition mt-4">
+                🖨️ Imprimir ticket
+            </a>
+            {% endif %}
+        </div>
+
+        <div class="bg-white rounded-2xl border border-cremaoscura p-4 text-xs text-cafe/70">
+            <p class="font-bold text-cafe mb-1">💡 Sobre las cancelaciones</p>
+            <p>Cancelar un platillo ya enviado a cocina requiere la contraseña de un administrador. El platillo se descuenta de la cuenta y cocina recibe un aviso.</p>
+        </div>
+    </aside>
+</div>
+
+<div id="modal-cancelar" class="hidden fixed inset-0 bg-cafeoscuro/60 z-50 items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 animar-entrada">
+        <h3 class="font-clasica text-xl font-bold mb-1">🚫 Cancelar platillo</h3>
+        <p class="text-sm text-cafe/70 mb-4">
+            Se cancelará <span id="cancelar-producto" class="font-semibold text-terracota"></span>
+            de la cuenta. Esta acción avisa a cocina y no repone inventario.
+        </p>
+        <form method="post" id="form-cancelar" class="space-y-3">
+            <input type="hidden" name="volver" value="{{ url_for('pos.cuenta_detalle', cuenta_id=cuenta.id) }}">
+            <div>
+                <label class="block text-sm font-semibold mb-1" for="motivo">Motivo</label>
+                <input type="text" name="motivo" id="motivo" maxlength="200"
+                       placeholder="Ej. El cliente ya no lo quiere"
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1" for="password_admin">Contraseña de administrador</label>
+                <input type="password" name="password_admin" id="password_admin" required
+                       class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
+            </div>
+            <button type="submit"
+                    class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition">
+                🚫 Cancelar platillo
+            </button>
+        </form>
+        <button type="button" id="modal-cancelar-cerrar"
+                class="mt-3 w-full border border-cremaoscura text-cafe font-semibold py-2 rounded-xl hover:bg-crema transition">
+            Volver
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const modal = document.getElementById('modal-cancelar');
+        const form = document.getElementById('form-cancelar');
+        const producto = document.getElementById('cancelar-producto');
+
+        document.querySelectorAll('.boton-cancelar-detalle').forEach(function (boton) {
+            boton.addEventListener('click', function () {
+                form.action = boton.dataset.accion;
+                producto.textContent = boton.dataset.producto;
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            });
+        });
+
+        document.getElementById('modal-cancelar-cerrar').addEventListener('click', function () {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        });
+    })();
+</script>
+{% endblock %}

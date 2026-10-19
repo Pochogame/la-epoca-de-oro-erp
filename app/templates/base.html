@@ -88,9 +88,12 @@
                 📦 Inventario</a>
             <a href="{{ url_for('recetas.index') }}"
                class="nav-pildora {{ 'activa' if request.blueprint == 'recetas' }}">
-                📖 Recetas (BOM)</a>
+                📖 Menú y recetas</a>
             {% endif %}
             {% if es_admin %}
+            <a href="{{ url_for('crm.index') }}"
+               class="nav-pildora {{ 'activa' if request.blueprint == 'crm' }}">
+                🧑‍🤝‍🧑 Clientes (CRM)</a>
             <a href="{{ url_for('reportes.index') }}"
                class="nav-pildora {{ 'activa' if request.blueprint == 'reportes' }}">
                 📈 Reportes</a>

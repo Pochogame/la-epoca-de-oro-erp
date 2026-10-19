@@ -1,4 +1,12 @@
-from app.models.ventas import Comanda, Mesa, Venta, VentaDetalle
+from app.extensions import db
+from app.models.ventas import (
+    CancelacionPlatillo,
+    Comanda,
+    CuentaMesa,
+    Mesa,
+    Venta,
+    VentaDetalle,
+)
 from app.repositories.base import RepositorioBase
 
 
@@ -17,6 +25,7 @@ class VentaRepositorio(RepositorioBase):
                 Venta.fecha >= desde,
                 Venta.fecha <= hasta,
                 Venta.cancelada.is_(False),
+                Venta.cobrada_en.isnot(None),
             )
             .order_by(Venta.fecha)
             .all()
@@ -24,7 +33,9 @@ class VentaRepositorio(RepositorioBase):
 
     def recientes(self, limite=50):
         return (
-            Venta.query.filter(Venta.cancelada.is_(False))
+            Venta.query.filter(
+                Venta.cancelada.is_(False), Venta.cobrada_en.isnot(None)
+            )
             .order_by(Venta.fecha.desc())
             .limit(limite)
             .all()
@@ -37,6 +48,41 @@ class VentaRepositorio(RepositorioBase):
             .limit(limite)
             .all()
         )
+
+
+class CuentaMesaRepositorio(RepositorioBase):
+    def __init__(self):
+        super().__init__(CuentaMesa)
+
+    def siguiente_folio(self):
+        ultima = CuentaMesa.query.order_by(CuentaMesa.id.desc()).first()
+        numero = (ultima.id + 1) if ultima else 1
+        return f"CTA-{numero:05d}"
+
+    def abierta_de(self, mesa_id):
+        return CuentaMesa.query.filter_by(mesa_id=mesa_id, cerrada_en=None).first()
+
+    def abiertas(self):
+        return (
+            CuentaMesa.query.filter(CuentaMesa.cerrada_en.is_(None))
+            .order_by(CuentaMesa.abierta_en)
+            .all()
+        )
+
+
+class CancelacionRepositorio(RepositorioBase):
+    def __init__(self):
+        super().__init__(CancelacionPlatillo)
+
+    def pendientes(self):
+        return (
+            CancelacionPlatillo.query.filter(CancelacionPlatillo.atendida_en.is_(None))
+            .order_by(CancelacionPlatillo.creada)
+            .all()
+        )
+
+    def de_detalle(self, detalle_id):
+        return CancelacionPlatillo.query.filter_by(detalle_id=detalle_id).first()
 
 
 class ComandaRepositorio(RepositorioBase):

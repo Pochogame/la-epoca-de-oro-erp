@@ -69,59 +69,26 @@ def test_entrada_pendiente_aparece_en_cuentas_por_pagar(chef_logueado, admin_log
         assert movimiento.estado_pago == "PAGADO"
 
 
-def test_transferencia_mueve_stock_entre_almacenes(chef_logueado, app):
-    client = chef_logueado
+def test_existe_un_solo_almacen_principal(app):
     with app.app_context():
-        id_pollo = insumo_id("INS-POL")
-        origen = stock_insumo("INS-POL", "ALM-MP")
-        destino = stock_insumo("INS-POL", "ALM-COC")
+        from app.models.inventario import Almacen
+        from app.models.menu import Producto
 
-    respuesta = client.post(
-        "/inventario/transferencia",
-        data={
-            "insumo_id": id_pollo,
-            "almacen_origen_id": 1,
-            "almacen_destino_id": 2,
-            "cantidad": "3",
-        },
-        follow_redirects=True,
-    )
-    assert "realizada" in respuesta.get_data(as_text=True)
-
-    with app.app_context():
-        assert round(stock_insumo("INS-POL", "ALM-MP"), 2) == round(origen - 3, 2)
-        assert round(stock_insumo("INS-POL", "ALM-COC"), 2) == round(destino + 3, 2)
-
-
-def test_transferencia_sin_stock_es_rechazada(chef_logueado, app):
-    client = chef_logueado
-    with app.app_context():
-        id_oreo = insumo_id("INS-ORE")
-
-    respuesta = client.post(
-        "/inventario/transferencia",
-        data={
-            "insumo_id": id_oreo,
-            "almacen_origen_id": 1,
-            "almacen_destino_id": 2,
-            "cantidad": "99999",
-        },
-        follow_redirects=True,
-    )
-    assert "Stock insuficiente" in respuesta.get_data(as_text=True)
+        almacenes = Almacen.query.all()
+        assert [almacen.codigo for almacen in almacenes] == ["ALM-MP"]
+        assert all(producto.almacen_consumo.codigo == "ALM-MP" for producto in Producto.query)
 
 
 def test_merma_descuenta_stock_y_registra_motivo(chef_logueado, app):
     client = chef_logueado
     with app.app_context():
         id_fresa = insumo_id("INS-FRE")
-        stock_antes = stock_insumo("INS-FRE", "ALM-COC")
+        stock_antes = stock_insumo("INS-FRE")
 
     respuesta = client.post(
         "/inventario/merma",
         data={
             "insumo_id": id_fresa,
-            "almacen_id": 2,
             "cantidad": "0.5",
             "motivo": "Alimento caducado",
             "comentario": "Fresa pasada del fin de semana",
@@ -131,7 +98,7 @@ def test_merma_descuenta_stock_y_registra_motivo(chef_logueado, app):
     assert "Merma registrada" in respuesta.get_data(as_text=True)
 
     with app.app_context():
-        assert round(stock_insumo("INS-FRE", "ALM-COC"), 2) == round(stock_antes - 0.5, 2)
+        assert round(stock_insumo("INS-FRE"), 2) == round(stock_antes - 0.5, 2)
         merma = Merma.query.order_by(Merma.id.desc()).first()
         assert merma.motivo == "Alimento caducado"
         assert merma.costo_estimado == 45.0

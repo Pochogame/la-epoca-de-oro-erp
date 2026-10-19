@@ -26,6 +26,23 @@
     </div>
 </div>
 
+{% if cuenta_actual %}
+<div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 mb-5 flex items-center justify-between flex-wrap gap-3">
+    <div>
+        <p class="font-bold text-amber-900">💵 Mesa {{ cuenta_actual.mesa.numero }} tiene una cuenta abierta</p>
+        <p class="text-sm text-amber-800">
+            {{ cuenta_actual.folio }} · {{ cuenta_actual.rondas }} ronda{{ 's' if cuenta_actual.rondas != 1 }}
+            · Total acumulado: <b>{{ cuenta_actual.total | moneda }}</b>
+            · Los nuevos pedidos se agregan como adición y se cobran al cerrar.
+        </p>
+    </div>
+    <a href="{{ url_for('pos.cuenta_detalle', cuenta_id=cuenta_actual.id) }}"
+       class="bg-terracota text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-terracota/80 transition">
+        Ver cuenta →
+    </a>
+</div>
+{% endif %}
+
 <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4 mb-5">
     <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
         <h2 class="font-clasica text-lg font-bold">⏳ Mis comandas pendientes</h2>
@@ -42,10 +59,17 @@
                 <div>
                     <p class="font-bold">{{ comanda.folio }}
                         {% if comanda.venta.mesa %}<span class="text-xs">· 🪑 Mesa {{ comanda.venta.mesa.numero }}</span>{% endif %}
+                        {% if comanda.venta.cuenta %}
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full
+                            {{ 'bg-dorado/40 text-cafe' if comanda.ronda == 1 else 'bg-terracota text-white' }}">
+                            R{{ comanda.ronda }}{{ ' ADICIÓN' if comanda.ronda > 1 }}
+                        </span>
+                        {% endif %}
                     </p>
                     <p class="text-xs text-cafe/60">
                         {{ comanda.creada | hora }} · {{ TipoOrden.ICONOS[comanda.tipo_orden] }}
                         {{ TipoOrden.ETIQUETAS[comanda.tipo_orden] }} · {{ comanda.venta.total | moneda }}
+                        {% if comanda.venta.por_cobrar %}· <b class="text-amber-700">por cobrar</b>{% endif %}
                     </p>
                 </div>
                 <span class="text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap
@@ -91,13 +115,21 @@
                         data-id="{{ producto.id }}"
                         data-nombre="{{ producto.nombre }}"
                         data-precio="{{ producto.precio }}"
-                        data-guisado="{{ '1' if producto.requiere_guisado else '0' }}">
+                        data-guisado="{{ '1' if producto.requiere_guisado else '0' }}"
+                        data-variantes='[{% for variante in producto.variantes_activas %}{"id": {{ variante.id }}, "nombre": {{ variante.nombre | tojson }}, "precio": {{ variante.precio }}}{% if not loop.last %},{% endif %}{% endfor %}]'>
                     <p class="font-semibold text-sm leading-tight">{{ producto.nombre }}</p>
                     <div class="flex items-center justify-between mt-2">
-                        <span class="text-terracota font-bold">{{ producto.precio | moneda }}</span>
-                        {% if producto.requiere_guisado %}
-                        <span class="text-[10px] bg-dorado/20 text-cafe px-2 py-0.5 rounded-full font-bold">🍲 guisado</span>
-                        {% endif %}
+                        <span class="text-terracota font-bold">
+                            {% if producto.tiene_variantes %}desde {% endif %}{{ producto.precio_desde | moneda }}
+                        </span>
+                        <span class="flex gap-1">
+                            {% if producto.tiene_variantes %}
+                            <span class="text-[10px] bg-verde/10 text-verde px-2 py-0.5 rounded-full font-bold">📏 tamaños</span>
+                            {% endif %}
+                            {% if producto.requiere_guisado %}
+                            <span class="text-[10px] bg-dorado/20 text-cafe px-2 py-0.5 rounded-full font-bold">🍲 guisado</span>
+                            {% endif %}
+                        </span>
                     </div>
                 </button>
                 {% endfor %}
@@ -126,7 +158,12 @@
                             <td class="py-2 pr-3 font-semibold">{{ venta.folio }}</td>
                             <td class="py-2 pr-3">{{ venta.fecha | fecha_hora }}</td>
                             <td class="py-2 pr-3">{{ ('🪑 ' ~ venta.mesa.numero) if venta.mesa else '—' }}</td>
-                            <td class="py-2 pr-3 font-bold">{{ venta.total | moneda }}</td>
+                            <td class="py-2 pr-3 font-bold">
+                                {{ venta.total | moneda }}
+                                {% if venta.por_cobrar %}
+                                <span class="block text-[10px] text-amber-700 font-bold">por cobrar</span>
+                                {% endif %}
+                            </td>
                             <td class="py-2 pr-3">
                                 {% if venta.comanda %}
                                 <span class="text-xs font-semibold px-2 py-0.5 rounded-full
@@ -139,8 +176,13 @@
                                 {% endif %}
                             </td>
                             <td class="py-2 text-right">
+                                {% if venta.cuenta_id %}
+                                <a href="{{ url_for('pos.cuenta_detalle', cuenta_id=venta.cuenta_id) }}"
+                                   class="text-xs text-terracota font-bold hover:underline">Cuenta</a>
+                                {% else %}
                                 <a href="{{ url_for('pos.ticket', venta_id=venta.id) }}"
                                    class="text-xs text-terracota font-bold hover:underline">Ticket</a>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
@@ -183,6 +225,17 @@
                 <input type="hidden" name="items_json" id="items_json" value="[]">
 
                 <div>
+                    <label class="text-xs font-bold uppercase text-cafe/60" for="cliente_id">Cliente (opcional)</label>
+                    <select name="cliente_id" id="cliente_id"
+                            class="w-full border border-cremaoscura rounded-lg px-3 py-2 mt-1 bg-crema/40">
+                        <option value="">— Sin cliente —</option>
+                        {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}" {{ 'selected' if cuenta_actual and cuenta_actual.cliente_id == cliente.id }}>{{ cliente.nombre }} · {{ cliente.telefono }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
                     <p class="text-xs font-bold uppercase text-cafe/60 mb-1">Modalidad</p>
                     <div class="grid grid-cols-2 gap-2">
                         {% for tipo in [TipoOrden.AQUI, TipoOrden.LLEVAR] %}
@@ -204,9 +257,10 @@
                         <optgroup label="{{ zona }}">
                             {% for mesa in mesas_zona %}
                             {% set activas = mesa.comandas_activas | length %}
+                            {% set cuenta_mesa = cuentas_abiertas.get(mesa.id) %}
                             <option value="{{ mesa.id }}"
                                     {{ 'disabled' if mesa.estado == EstadoMesa.RESERVADA }}>
-                                Mesa {{ mesa.numero }}{{ ' · reservada' if mesa.estado == EstadoMesa.RESERVADA }}{{ ' · ' ~ activas ~ ' comanda(s)' if activas }}
+                                Mesa {{ mesa.numero }}{{ ' · reservada' if mesa.estado == EstadoMesa.RESERVADA }}{{ ' · 💵 cuenta abierta (' ~ cuenta_mesa.rondas ~ ' ronda' ~ ('s' if cuenta_mesa.rondas != 1) ~ ')' if cuenta_mesa }}{{ ' · ' ~ activas ~ ' comanda(s)' if activas }}
                             </option>
                             {% endfor %}
                         </optgroup>
@@ -214,7 +268,7 @@
                     </select>
                 </div>
 
-                <div>
+                <div id="bloque-pago">
                     <label class="text-xs font-bold uppercase text-cafe/60" for="metodo_pago">Método de pago</label>
                     <select name="metodo_pago" id="metodo_pago"
                             class="w-full border border-cremaoscura rounded-lg px-3 py-2 mt-1 bg-crema/40">
@@ -222,6 +276,25 @@
                         <option value="{{ metodo }}">{{ MetodoPago.ETIQUETAS[metodo] }}</option>
                         {% endfor %}
                     </select>
+                </div>
+                <p id="nota-cuenta" class="hidden text-[11px] bg-amber-50 border border-amber-300 text-amber-900 rounded-lg px-3 py-2">
+                    💵 Este pedido se agrega a la cuenta de la mesa. El pago se registra al cerrar la cuenta.
+                </p>
+
+                <div id="aviso-faltantes" class="hidden bg-red-50 border-2 border-red-300 rounded-xl p-3 text-xs text-red-800 space-y-2">
+                    <p class="font-bold">⚠️ Hay platillos que no se pueden preparar por falta de insumos:</p>
+                    <ul id="lista-faltantes" class="list-disc list-inside space-y-0.5"></ul>
+                    <p>Puedes quitarlos y enviar el resto del pedido.</p>
+                    <div class="flex gap-2">
+                        <button type="button" id="boton-quitar-faltantes"
+                                class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg transition">
+                            Quitar faltantes y continuar
+                        </button>
+                        <button type="button" id="boton-revisar-faltantes"
+                                class="px-3 bg-white border border-red-300 text-red-700 font-bold rounded-lg">
+                            Revisar
+                        </button>
+                    </div>
                 </div>
 
                 <button type="submit" id="boton-confirmar"
@@ -232,6 +305,20 @@
             </form>
         </div>
     </aside>
+</div>
+
+<div id="modal-variante" class="hidden fixed inset-0 bg-cafeoscuro/60 z-50 items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-5 animar-entrada">
+        <h3 class="font-clasica text-xl font-bold mb-1">📏 Elige el tamaño</h3>
+        <p class="text-sm text-cafe/70 mb-4">
+            Producto: <span id="modal-variante-producto" class="font-semibold text-terracota"></span>
+        </p>
+        <div id="modal-variante-opciones" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
+        <button type="button" id="modal-variante-cancelar"
+                class="mt-4 w-full border border-cremaoscura text-cafe font-semibold py-2 rounded-xl hover:bg-crema transition">
+            Cancelar
+        </button>
+    </div>
 </div>
 
 <div id="modal-guisado" class="hidden fixed inset-0 bg-cafeoscuro/60 z-50 items-center justify-center p-4 no-print">
@@ -256,6 +343,8 @@
     window.URL_COMANDA_DETALLE = "{{ url_for('pos.comanda_detalle', comanda_id=999999) }}".replace("999999", "");
     window.URL_CERRAR_COMANDA = "{{ url_for('pos.cerrar_comanda', comanda_id=999999) }}".replace("999999", "");
     window.URL_POS_TURNO = "{{ url_for('pos.index', turno=turno) }}";
+    window.URL_DISPONIBILIDAD = "{{ url_for('pos.disponibilidad') }}";
+    window.TURNO_ACTUAL = "{{ turno }}";
 
     (function () {
         const contenedor = document.getElementById("lista-pendientes");
@@ -288,8 +377,10 @@
                     '<div class="flex justify-between items-start gap-2">' +
                     '<div><p class="font-bold">' + comanda.folio +
                     (comanda.mesa ? ' <span class="text-xs">· 🪑 Mesa ' + comanda.mesa + '</span>' : '') +
+                    (comanda.ronda > 1 ? ' <span class="text-[10px] font-bold bg-terracota text-white px-1.5 py-0.5 rounded-full">R' + comanda.ronda + ' ADICIÓN</span>' : '') +
                     '</p><p class="text-xs text-cafe/60">' + comanda.hora + ' · ' + comanda.tipo +
-                    ' · ' + comanda.total + '</p></div>' +
+                    ' · ' + comanda.total + (comanda.por_cobrar ? ' · <b class="text-amber-700">por cobrar</b>' : '') +
+                    '</p></div>' +
                     '<span class="text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap ' +
                     colorEtiqueta(comanda.estado) + '">' + comanda.etiqueta + '</span></div>' +
                     '<div class="flex gap-2 mt-2">' +

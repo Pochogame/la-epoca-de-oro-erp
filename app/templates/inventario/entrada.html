@@ -32,19 +32,14 @@
                        class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
             </div>
             <div>
-                <label class="block text-sm font-semibold mb-1">Almacén destino</label>
-                <select name="almacen_destino_id" required class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
-                    {% for almacen in almacenes %}
-                    <option value="{{ almacen.id }}">{{ almacen.codigo }} · {{ almacen.nombre }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
                 <label class="block text-sm font-semibold mb-1">Estado de pago</label>
                 <select name="estado_pago" class="w-full border border-cremaoscura rounded-lg px-3 py-2 bg-crema/40">
                     <option value="PAGADO">Pagado (sale de caja)</option>
                     <option value="PENDIENTE">Pendiente (cuentas por pagar)</option>
                 </select>
+            </div>
+            <div class="sm:col-span-2 bg-crema/40 border border-cremaoscura rounded-lg px-3 py-2 text-xs text-cafe/70">
+                📦 La entrada se registra en el almacén principal.
             </div>
             <div class="sm:col-span-2">
                 <label class="block text-sm font-semibold mb-1">Referencia / proveedor (opcional)</label>

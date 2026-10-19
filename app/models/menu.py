@@ -18,6 +18,12 @@ class Producto(db.Model):
     receta = db.relationship(
         "RecetaIngrediente", back_populates="producto", cascade="all, delete-orphan"
     )
+    variantes = db.relationship(
+        "ProductoVariante",
+        back_populates="producto",
+        cascade="all, delete-orphan",
+        order_by="ProductoVariante.orden",
+    )
     detalles = db.relationship("VentaDetalle", back_populates="producto")
 
     @property
@@ -28,11 +34,45 @@ class Producto(db.Model):
         return self.turno in (turno, "AMBOS")
 
     @property
+    def variantes_activas(self):
+        return [variante for variante in self.variantes if variante.activo]
+
+    @property
+    def tiene_variantes(self):
+        return bool(self.variantes_activas)
+
+    @property
+    def precio_desde(self):
+        precios = [variante.precio for variante in self.variantes_activas]
+        return min(precios) if precios else self.precio
+
+    @property
     def costo_receta(self):
         return round(sum(linea.costo for linea in self.receta), 4)
 
     def __repr__(self):
         return f"<Producto {self.codigo} {self.nombre}>"
+
+
+class ProductoVariante(db.Model):
+    __tablename__ = "producto_variantes"
+    __table_args__ = (
+        db.UniqueConstraint("producto_id", "nombre", name="uq_variante_producto_nombre"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    producto_id = db.Column(db.Integer, db.ForeignKey("productos.id"), nullable=False)
+    nombre = db.Column(db.String(40), nullable=False)
+    precio = db.Column(db.Float, nullable=False, default=0.0)
+    factor_receta = db.Column(db.Float, nullable=False, default=1.0)
+    activo = db.Column(db.Boolean, nullable=False, default=True)
+    orden = db.Column(db.Integer, nullable=False, default=0)
+
+    producto = db.relationship("Producto", back_populates="variantes")
+    detalles = db.relationship("VentaDetalle", back_populates="variante")
+
+    def __repr__(self):
+        return f"<ProductoVariante {self.nombre} ${self.precio:.2f}>"
 
 
 class RecetaIngrediente(db.Model):

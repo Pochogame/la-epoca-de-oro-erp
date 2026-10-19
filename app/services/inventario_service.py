@@ -45,7 +45,18 @@ class InventarioService:
             raise DatosInvalidosError(f"El almacén {codigo} no existe.")
         return almacen
 
-    def stock_de(self, insumo_id, almacen_id):
+    def principal(self):
+        almacen = self.almacenes.principal()
+        if almacen is None:
+            raise DatosInvalidosError("No hay un almacén principal configurado.")
+        return almacen
+
+    def stock_de(self, insumo_id, almacen_id=None):
+        if almacen_id is None:
+            almacen = self.almacenes.principal()
+            if almacen is None:
+                return 0.0
+            almacen_id = almacen.id
         stock = self.insumos.stock(insumo_id, almacen_id)
         return round(stock.cantidad, 4) if stock else 0.0
 
@@ -208,7 +219,7 @@ class InventarioService:
             detalle = "; ".join(faltantes)
             raise StockInsuficienteError(
                 f"No hay stock suficiente para completar la venta. Faltantes: {detalle}. "
-                "Realiza una entrada o transferencia de insumos."
+                "Registra una entrada de insumos."
             )
 
     def descontar_requerimientos(self, requerimientos, referencia, usuario_id=None):
@@ -256,12 +267,10 @@ class InventarioService:
         return self.movimientos_repo.movimientos(limite)
 
     def panel_almacenes(self):
-        panel = []
-        for almacen in self.almacenes.todos_ordenados():
-            panel.append(
-                {"almacen": almacen, "stocks": self.insumos.stocks_por_almacen(almacen.id)}
-            )
-        return panel
+        almacen = self.almacenes.principal()
+        if almacen is None:
+            return []
+        return [{"almacen": almacen, "stocks": self.insumos.stocks_por_almacen(almacen.id)}]
 
     def avisos_pendientes(self):
         return self.avisos.pendientes()
@@ -294,8 +303,11 @@ class InventarioService:
         db.session.commit()
         return aviso
 
-    def insumos_de_almacen(self, almacen_codigo):
-        almacen = self.almacen_por_codigo(almacen_codigo)
+    def insumos_de_almacen(self, almacen_codigo=None):
+        if almacen_codigo:
+            almacen = self.almacen_por_codigo(almacen_codigo)
+        else:
+            almacen = self.principal()
         return [
             {
                 "insumo": stock.insumo,

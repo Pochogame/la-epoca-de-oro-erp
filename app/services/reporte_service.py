@@ -13,6 +13,7 @@ class ReporteService:
                 Venta.fecha >= desde,
                 Venta.fecha <= hasta,
                 Venta.cancelada.is_(False),
+                Venta.cobrada_en.isnot(None),
             )
             .order_by(Venta.fecha)
             .all()
@@ -46,6 +47,8 @@ class ReporteService:
                 Venta.fecha >= desde,
                 Venta.fecha <= hasta,
                 Venta.cancelada.is_(False),
+                Venta.cobrada_en.isnot(None),
+                VentaDetalle.cancelado.is_(False),
             )
             .group_by(VentaDetalle.producto_nombre)
             .order_by(db.func.sum(VentaDetalle.cantidad).desc())

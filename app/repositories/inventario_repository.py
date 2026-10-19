@@ -16,6 +16,12 @@ class AlmacenRepositorio(RepositorioBase):
     def por_codigo(self, codigo):
         return Almacen.query.filter_by(codigo=codigo).first()
 
+    def principal(self):
+        almacen = self.por_codigo("ALM-MP")
+        if almacen is not None:
+            return almacen
+        return Almacen.query.order_by(Almacen.id).first()
+
     def todos_ordenados(self):
         return Almacen.query.order_by(Almacen.codigo).all()
 

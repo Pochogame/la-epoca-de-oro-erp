@@ -30,13 +30,21 @@ class MetodoPago:
     EFECTIVO = "EFECTIVO"
     TARJETA = "TARJETA"
     TRANSFERENCIA = "TRANSFERENCIA"
+    POR_COBRAR = "POR_COBRAR"
     TODOS = (EFECTIVO, TARJETA, TRANSFERENCIA)
     ETIQUETAS = {
         EFECTIVO: "Efectivo",
         TARJETA: "Tarjeta de crédito/débito",
         TRANSFERENCIA: "Transferencia",
+        POR_COBRAR: "Por cobrar (cuenta de mesa)",
     }
     CUENTA_CONTABLE = {EFECTIVO: "1101", TARJETA: "1102", TRANSFERENCIA: "1102"}
+
+
+class EstadoCuenta:
+    ABIERTA = "ABIERTA"
+    COBRADA = "COBRADA"
+    ETIQUETAS = {ABIERTA: "Cuenta abierta", COBRADA: "Cobrada"}
 
 
 class EstadoComanda:

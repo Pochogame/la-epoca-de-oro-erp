@@ -6,7 +6,7 @@ def test_estado_resultados_refleja_ventas_reales(admin_logueado):
     respuesta = admin_logueado.get("/contabilidad/estado-resultados")
     texto = respuesta.get_data(as_text=True)
     assert "UTILIDAD NETA OPERATIVA DEL PERIODO" in texto
-    assert "$415.00" in texto
+    assert "$394.00" in texto
     assert "UTILIDAD BRUTA" in texto
 
 

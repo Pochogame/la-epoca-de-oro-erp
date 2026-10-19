@@ -65,10 +65,12 @@ def usuario_id(username):
     return Usuario.query.filter_by(username=username).first().id
 
 
-def stock_insumo(insumo_codigo, almacen_codigo):
+def stock_insumo(insumo_codigo, almacen_codigo="ALM-MP"):
     from app.models.inventario import Almacen, Insumo, StockAlmacen
 
     insumo = Insumo.query.filter_by(codigo=insumo_codigo).first()
     almacen = Almacen.query.filter_by(codigo=almacen_codigo).first()
+    if almacen is None:
+        almacen = Almacen.query.order_by(Almacen.id).first()
     registro = StockAlmacen.query.filter_by(insumo_id=insumo.id, almacen_id=almacen.id).first()
     return registro.cantidad if registro else 0.0

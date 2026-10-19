@@ -27,7 +27,7 @@ def test_venta_descuenta_inventario_y_genera_comanda(mesero_logueado, app):
     client = mesero_logueado
 
     with app.app_context():
-        stock_vasos_antes = stock_insumo("INS-V12", "ALM-POS")
+        stock_vasos_antes = stock_insumo("INS-V12")
         ventas_antes = Venta.query.count()
         cafe_id = producto_id("BEB-CAF-AM")
 
@@ -42,7 +42,7 @@ def test_venta_descuenta_inventario_y_genera_comanda(mesero_logueado, app):
         assert venta.costo_insumos > 0
         assert venta.comanda is not None
         assert venta.comanda.estado == "EN_PREPARACION"
-        assert stock_insumo("INS-V12", "ALM-POS") == stock_vasos_antes - 2
+        assert stock_insumo("INS-V12") == stock_vasos_antes - 2
 
 
 def test_venta_sin_stock_es_rechazada(mesero_logueado, app):
@@ -86,7 +86,7 @@ def test_taco_requiere_guisado_valido(mesero_logueado, app):
 def test_taco_con_guisado_descuenta_guisado_correcto(mesero_logueado, app):
     client = mesero_logueado
     with app.app_context():
-        stock_barbacoa_antes = stock_insumo("INS-GUI-BAR", "ALM-COC")
+        stock_barbacoa_antes = stock_insumo("INS-GUI-BAR")
         taco_id = producto_id("TAR-TACOS")
 
     respuesta = _confirmar(
@@ -97,7 +97,7 @@ def test_taco_con_guisado_descuenta_guisado_correcto(mesero_logueado, app):
     assert "registrada" in respuesta.get_data(as_text=True)
 
     with app.app_context():
-        assert round(stock_insumo("INS-GUI-BAR", "ALM-COC"), 4) == round(
+        assert round(stock_insumo("INS-GUI-BAR"), 4) == round(
             stock_barbacoa_antes - 0.12, 4
         )
 

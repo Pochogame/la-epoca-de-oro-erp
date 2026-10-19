@@ -5,6 +5,7 @@ en iteraciones posteriores, en este orden sugerido.
 
 ## 1. Lealtad "Boletos de Oro"
 
+- La base de CRM (directorio, historial y asociación de cliente en POS/cuentas) ya está implementada.
 - Tarjeta digital de cliente frecuente: 1 boleto por cada $X de consumo.
 - Acumulación por teléfono (sin app): el mesero captura el teléfono en el POS.
 - N boletos = platillo o bebida cortesía; canje registrado como gasto de marketing.
@@ -46,3 +47,9 @@ en iteraciones posteriores, en este orden sugerido.
 
 - Copia diaria de `instance/la_epoca_de_oro.db` a una carpeta o USB.
 - Restauración guiada desde el panel de administración.
+
+## 9. Cuentas de mesa avanzadas
+
+- Cobro dividido: asignar platillos o montos a varias personas/métodos de pago.
+- Transferir una cuenta completa a otra mesa o unir mesas.
+- Propina sugerida/editable al cobrar la cuenta.

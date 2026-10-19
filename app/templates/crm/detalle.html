@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block titulo %}{{ cliente.nombre }} · CRM · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+    <div>
+        <h1 class="font-clasica text-2xl font-bold">
+            {{ cliente.nombre }}
+            {% if not cliente.activo %}
+            <span class="text-xs align-middle bg-cremaoscura text-cafe/60 px-2 py-1 rounded-full">Inactivo</span>
+            {% endif %}
+        </h1>
+        <p class="text-sm text-cafe/70">📱 {{ cliente.telefono }}{% if cliente.email %} · ✉️ {{ cliente.email }}{% endif %}</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="{{ url_for('crm.editar', cliente_id=cliente.id) }}"
+           class="text-sm bg-white border border-cremaoscura px-4 py-2 rounded-xl font-bold hover:bg-crema transition">
+            ✏️ Editar
+        </a>
+        <a href="{{ url_for('crm.index') }}"
+           class="text-sm bg-white border border-cremaoscura px-4 py-2 rounded-xl font-bold hover:bg-crema transition">
+            ← CRM
+        </a>
+    </div>
+</div>
+
+<div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+        <p class="text-xs font-bold uppercase text-cafe/60">Visitas</p>
+        <p class="text-2xl font-bold text-terracota">{{ visitas }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+        <p class="text-xs font-bold uppercase text-cafe/60">Consumo total</p>
+        <p class="text-2xl font-bold text-terracota">{{ total | moneda }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+        <p class="text-xs font-bold uppercase text-cafe/60">Ticket promedio</p>
+        <p class="text-2xl font-bold text-terracota">{{ ticket_promedio | moneda }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+        <p class="text-xs font-bold uppercase text-cafe/60">Última compra</p>
+        <p class="text-lg font-bold text-terracota">
+            {{ ultima_compra.strftime('%d/%m/%Y') if ultima_compra else 'Sin compras' }}
+        </p>
+    </div>
+</div>
+
+<div class="grid lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2 bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+        <h2 class="font-clasica text-lg font-bold mb-3">🧾 Historial de compras</h2>
+        {% if ventas %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-xs uppercase text-cafe/60 border-b border-cremaoscura">
+                        <th class="py-2 pr-3">Folio</th>
+                        <th class="py-2 pr-3">Fecha</th>
+                        <th class="py-2 pr-3">Pago</th>
+                        <th class="py-2 pr-3">Artículos</th>
+                        <th class="py-2 text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for venta in ventas %}
+                    <tr class="border-b border-crema/60">
+                        <td class="py-2 pr-3 font-semibold">{{ venta.folio }}</td>
+                        <td class="py-2 pr-3">{{ venta.cobrada_en | fecha_hora }}</td>
+                        <td class="py-2 pr-3">{{ MetodoPago.ETIQUETAS.get(venta.metodo_pago, venta.metodo_pago) }}</td>
+                        <td class="py-2 pr-3">
+                            {% for detalle in venta.detalles %}
+                            {% if not detalle.cancelado %}
+                            <span class="block text-xs">
+                                {{ detalle.cantidad }}× {{ detalle.producto_nombre }}
+                                {% if detalle.variante_nombre %}· {{ detalle.variante_nombre }}{% endif %}
+                            </span>
+                            {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td class="py-2 text-right font-bold">{{ venta.total | moneda }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-sm text-cafe/60">Este cliente todavía no tiene compras cobradas.</p>
+        {% endif %}
+    </div>
+
+    <aside class="space-y-4">
+        <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+            <h2 class="font-clasica text-lg font-bold mb-2">📋 Ficha</h2>
+            {% if cliente.cumpleanos %}
+            <p class="text-sm">🎂 <b>Cumpleaños:</b> {{ cliente.cumpleanos.strftime('%d/%m/%Y') }}</p>
+            {% endif %}
+            <p class="text-sm">📅 <b>Cliente desde:</b> {{ cliente.creado_en | fecha_corta }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4">
+            <h2 class="font-clasica text-lg font-bold mb-2">📝 Notas</h2>
+            <p class="text-sm text-cafe/70 whitespace-pre-line">{{ cliente.notas or 'Sin notas registradas.' }}</p>
+        </div>
+    </aside>
+</div>
+{% endblock %}

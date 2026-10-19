@@ -15,11 +15,22 @@ from app.constants import (
     Turno,
 )
 from app.extensions import db
-from app.models.ventas import Comanda, Mesa, Venta, VentaDetalle
+from app.models.crm import Cliente
+from app.models.ventas import (
+    CancelacionPlatillo,
+    Comanda,
+    CuentaMesa,
+    Mesa,
+    Venta,
+    VentaDetalle,
+)
 from app.repositories.inventario_repository import InsumoRepositorio
 from app.repositories.menu_repository import ProductoRepositorio
+from app.repositories.usuario_repository import UsuarioRepositorio
 from app.repositories.venta_repository import (
+    CancelacionRepositorio,
     ComandaRepositorio,
+    CuentaMesaRepositorio,
     MesaRepositorio,
     VentaRepositorio,
 )
@@ -38,6 +49,9 @@ class VentaService:
         inventario=None,
         contabilidad=None,
         mesas=None,
+        cuentas=None,
+        cancelaciones=None,
+        usuarios=None,
     ):
         self.ventas = ventas or VentaRepositorio()
         self.comandas = comandas or ComandaRepositorio()
@@ -46,6 +60,32 @@ class VentaService:
         self.inventario = inventario or InventarioService()
         self.contabilidad = contabilidad or ContabilidadService()
         self.mesas = mesas or MesaRepositorio()
+        self.cuentas = cuentas or CuentaMesaRepositorio()
+        self.cancelaciones = cancelaciones or CancelacionRepositorio()
+        self.usuarios = usuarios or UsuarioRepositorio()
+
+    def _resolver_variante(self, producto, item):
+        variantes = producto.variantes_activas
+        if not variantes:
+            return None, "", 1.0
+
+        variante_id = item.get("variante_id")
+        nombre = (item.get("variante_nombre") or "").strip()
+        variante = None
+        if variante_id:
+            variante = next(
+                (actual for actual in variantes if actual.id == int(variante_id)), None
+            )
+        elif nombre:
+            variante = next(
+                (actual for actual in variantes if actual.nombre.lower() == nombre.lower()),
+                None,
+            )
+        if variante is None:
+            raise DatosInvalidosError(
+                f"Selecciona un tamaño válido para '{producto.nombre}'."
+            )
+        return variante, variante.nombre, variante.factor_receta
 
     def _expandir_items(self, items, turno):
         lineas = []
@@ -78,20 +118,24 @@ class VentaService:
             else:
                 guisado = ""
 
+            variante, variante_nombre, factor = self._resolver_variante(producto, item)
+            precio_unitario = variante.precio if variante else producto.precio
+
             almacen_id = producto.almacen_consumo_id
             if almacen_id is None:
-                raise DatosInvalidosError(
-                    f"El producto '{producto.nombre}' no tiene almacén de consumo configurado."
-                )
+                almacen = self.inventario.principal()
+                almacen_id = almacen.id
 
             costo_linea = 0.0
             for ingrediente in producto.receta:
+                cantidad_insumo = ingrediente.cantidad * cantidad * factor
                 clave = (ingrediente.insumo_id, almacen_id)
-                requerimientos[clave] = (
-                    requerimientos.get(clave, 0.0) + ingrediente.cantidad * cantidad
-                )
+                requerimientos[clave] = requerimientos.get(clave, 0.0) + cantidad_insumo
                 costo_linea += (
-                    ingrediente.cantidad * ingrediente.insumo.costo_unitario * cantidad
+                    ingrediente.cantidad
+                    * ingrediente.insumo.costo_unitario
+                    * cantidad
+                    * factor
                 )
 
             if guisado:
@@ -100,25 +144,88 @@ class VentaService:
                     raise DatosInvalidosError(
                         f"El insumo del guisado '{guisado}' no está configurado en el almacén."
                     )
+                cantidad_guisado = PORCION_GUISADO_KG * cantidad * factor
                 clave = (insumo_guisado.id, almacen_id)
                 requerimientos[clave] = (
-                    requerimientos.get(clave, 0.0) + PORCION_GUISADO_KG * cantidad
+                    requerimientos.get(clave, 0.0) + cantidad_guisado
                 )
-                costo_linea += PORCION_GUISADO_KG * insumo_guisado.costo_unitario * cantidad
+                costo_linea += (
+                    PORCION_GUISADO_KG
+                    * insumo_guisado.costo_unitario
+                    * cantidad
+                    * factor
+                )
 
-            subtotal = round(producto.precio * cantidad, 2)
+            subtotal = round(precio_unitario * cantidad, 2)
             lineas.append(
                 {
                     "producto": producto,
+                    "variante": variante,
+                    "variante_nombre": variante_nombre,
                     "cantidad": cantidad,
                     "guisado": guisado,
-                    "precio_unitario": producto.precio,
+                    "precio_unitario": precio_unitario,
                     "subtotal": subtotal,
                     "costo_linea": round(costo_linea, 2),
                 }
             )
 
         return lineas, requerimientos
+
+    def evaluar_disponibilidad(self, items, turno):
+        """Evalúa el pedido línea por línea sin lanzar error por stock.
+        Las líneas que no alcanzan se marcan como no disponibles para que
+        el POS permita quitarlas y enviar el resto."""
+        disponibles = {}
+        resultado = []
+        for indice, item in enumerate(items):
+            try:
+                lineas, requerimientos = self._expandir_items([item], turno)
+            except DatosInvalidosError as error:
+                resultado.append(
+                    {
+                        "indice": indice,
+                        "disponible": False,
+                        "motivo": str(error),
+                        "producto": "",
+                        "cantidad": 0,
+                        "variante": "",
+                    }
+                )
+                continue
+
+            linea = lineas[0]
+            faltantes = []
+            for clave, cantidad in requerimientos.items():
+                acumulado = disponibles.get(clave, 0.0) + cantidad
+                insumo_id, almacen_id = clave
+                stock = self.inventario.stock_de(insumo_id, almacen_id)
+                if acumulado > stock + 1e-9:
+                    insumo = self.insumos.obtener(insumo_id)
+                    faltantes.append(insumo.nombre)
+
+            disponible = not faltantes
+            if disponible:
+                for clave, cantidad in requerimientos.items():
+                    disponibles[clave] = disponibles.get(clave, 0.0) + cantidad
+
+            resultado.append(
+                {
+                    "indice": indice,
+                    "disponible": disponible,
+                    "motivo": (
+                        "Falta: " + ", ".join(sorted(set(faltantes))) if faltantes else ""
+                    ),
+                    "producto": linea["producto"].nombre,
+                    "cantidad": linea["cantidad"],
+                    "variante": linea["variante_nombre"],
+                }
+            )
+
+        return {
+            "lineas": resultado,
+            "no_disponibles": sum(1 for linea in resultado if not linea["disponible"]),
+        }
 
     def registrar_venta(
         self,
@@ -129,17 +236,23 @@ class VentaService:
         items,
         usuario_id=None,
         mesa_id=None,
+        cliente_id=None,
     ):
         if turno not in Turno.TODOS:
             raise DatosInvalidosError("El turno seleccionado no es válido.")
         if tipo_orden not in (TipoOrden.AQUI, TipoOrden.LLEVAR):
             raise DatosInvalidosError("La modalidad de consumo no es válida.")
-        if metodo_pago not in MetodoPago.TODOS:
-            raise DatosInvalidosError("El método de pago no es válido.")
         if not items:
             raise DatosInvalidosError("El pedido no tiene productos. Agrega al menos uno.")
 
+        cliente = None
+        if cliente_id:
+            cliente = db.session.get(Cliente, int(cliente_id))
+            if cliente is None or not cliente.activo:
+                raise DatosInvalidosError("El cliente seleccionado no existe o está inactivo.")
+
         mesa = None
+        cuenta = None
         if tipo_orden == TipoOrden.AQUI and mesa_id:
             mesa = self.mesas.obtener(int(mesa_id))
             if mesa is None:
@@ -148,28 +261,57 @@ class VentaService:
                 raise DatosInvalidosError(
                     f"La mesa {mesa.numero} está reservada. Elige otra mesa."
                 )
+            cuenta = self.cuentas.abierta_de(mesa.id)
+            if cuenta is None:
+                cuenta = CuentaMesa(
+                    folio=self.cuentas.siguiente_folio(),
+                    mesa_id=mesa.id,
+                    abierta_por_id=mesero_id,
+                    cliente_id=cliente.id if cliente else None,
+                )
+                self.cuentas.agregar(cuenta)
+                db.session.flush()
+            elif cliente is not None:
+                if cuenta.cliente_id is None:
+                    cuenta.cliente_id = cliente.id
+                elif cuenta.cliente_id != cliente.id:
+                    raise DatosInvalidosError(
+                        "La cuenta ya está asociada a otro cliente. "
+                        "Cámbialo desde el detalle de la cuenta."
+                    )
+            ronda = len(cuenta.ventas) + 1
+        else:
+            ronda = 1
+            if metodo_pago not in MetodoPago.TODOS:
+                raise DatosInvalidosError("El método de pago no es válido.")
 
         lineas, requerimientos = self._expandir_items(items, turno)
         self.inventario.verificar_disponibilidad(requerimientos)
 
         total = round(sum(linea["subtotal"] for linea in lineas), 2)
         costo_total = round(sum(linea["costo_linea"] for linea in lineas), 2)
+        fecha = datetime.now()
 
         venta = Venta(
             folio=self.ventas.siguiente_folio(),
             turno=turno,
             tipo_orden=tipo_orden,
-            metodo_pago=metodo_pago,
+            metodo_pago=MetodoPago.POR_COBRAR if cuenta else metodo_pago,
             total=total,
             costo_insumos=costo_total,
             mesero_id=mesero_id,
             mesa_id=mesa.id if mesa else None,
+            cuenta_id=cuenta.id if cuenta else None,
+            cliente_id=cuenta.cliente_id if cuenta else (cliente.id if cliente else None),
+            cobrada_en=None if cuenta else fecha,
         )
         for linea in lineas:
             venta.detalles.append(
                 VentaDetalle(
                     producto_id=linea["producto"].id,
                     producto_nombre=linea["producto"].nombre,
+                    variante_id=linea["variante"].id if linea["variante"] else None,
+                    variante_nombre=linea["variante_nombre"],
                     guisado=linea["guisado"],
                     cantidad=linea["cantidad"],
                     precio_unitario=linea["precio_unitario"],
@@ -186,6 +328,7 @@ class VentaService:
             turno=turno,
             tipo_orden=tipo_orden,
             estado=EstadoComanda.EN_PREPARACION,
+            ronda=ronda,
         )
         self.comandas.agregar(comanda)
 
@@ -196,13 +339,14 @@ class VentaService:
             requerimientos, referencia=venta.folio, usuario_id=usuario_id
         )
 
-        cuenta_cobro = MetodoPago.CUENTA_CONTABLE[metodo_pago]
-        self.contabilidad.registrar_asiento(
-            f"Venta {venta.folio} - {Turno.ETIQUETAS[turno]} - {TipoOrden.ETIQUETAS[tipo_orden]}",
-            [(cuenta_cobro, total, 0.0), (CUENTA_VENTAS, 0.0, total)],
-            origen="VENTA",
-            referencia=venta.folio,
-        )
+        if not cuenta:
+            cuenta_cobro = MetodoPago.CUENTA_CONTABLE[metodo_pago]
+            self.contabilidad.registrar_asiento(
+                f"Venta {venta.folio} - {Turno.ETIQUETAS[turno]} - {TipoOrden.ETIQUETAS[tipo_orden]}",
+                [(cuenta_cobro, total, 0.0), (CUENTA_VENTAS, 0.0, total)],
+                origen="VENTA",
+                referencia=venta.folio,
+            )
         if costo_total > 0:
             self.contabilidad.registrar_asiento(
                 f"Costo de venta (BOM) {venta.folio}",
@@ -266,13 +410,14 @@ class VentaService:
             venta.cancelada = True
             venta.cancelada_en = datetime.now()
             venta.motivo_cancelacion = comanda.motivo_merma
-            cuenta_cobro = MetodoPago.CUENTA_CONTABLE[venta.metodo_pago]
-            self.contabilidad.registrar_asiento(
-                f"Cancelación de venta {venta.folio}: {comanda.motivo_merma}",
-                [(CUENTA_VENTAS, venta.total, 0.0), (cuenta_cobro, 0.0, venta.total)],
-                origen="CANCELACION",
-                referencia=venta.folio,
-            )
+            if venta.cobrada_en is not None:
+                cuenta_cobro = MetodoPago.CUENTA_CONTABLE[venta.metodo_pago]
+                self.contabilidad.registrar_asiento(
+                    f"Cancelación de venta {venta.folio}: {comanda.motivo_merma}",
+                    [(CUENTA_VENTAS, venta.total, 0.0), (cuenta_cobro, 0.0, venta.total)],
+                    origen="CANCELACION",
+                    referencia=venta.folio,
+                )
 
         self._liberar_mesa_si_aplica(venta)
         db.session.commit()
@@ -295,6 +440,8 @@ class VentaService:
         return comanda
 
     def _liberar_mesa_si_aplica(self, venta):
+        if venta.cuenta_id is not None:
+            return
         if venta.mesa is None:
             return
         if not venta.mesa.comandas_activas:
@@ -306,6 +453,13 @@ class VentaService:
             raise DatosInvalidosError("La mesa indicada no existe.")
         if estado not in EstadoMesa.TODOS:
             raise DatosInvalidosError("El estado de la mesa no es válido.")
+        if mesa.cuenta_abierta is not None and estado in (
+            EstadoMesa.LIBRE,
+            EstadoMesa.RESERVADA,
+        ):
+            raise DatosInvalidosError(
+                f"La mesa {mesa.numero} tiene una cuenta abierta. Cóbrala antes de liberarla."
+            )
         if estado == EstadoMesa.LIBRE and mesa.comandas_activas:
             raise DatosInvalidosError(
                 "La mesa tiene comandas activas; no puede marcarse como libre todavía."
@@ -313,6 +467,188 @@ class VentaService:
         mesa.estado = estado
         db.session.commit()
         return mesa
+
+    def cuenta_de(self, cuenta_id):
+        return self.cuentas.obtener(cuenta_id)
+
+    def cuentas_abiertas(self):
+        return self.cuentas.abiertas()
+
+    def cuentas_abiertas_por_mesa(self):
+        return {cuenta.mesa_id: cuenta for cuenta in self.cuentas.abiertas()}
+
+    def asignar_cliente_cuenta(self, cuenta_id, cliente_id):
+        cuenta = self.cuentas.obtener(cuenta_id)
+        if cuenta is None:
+            raise DatosInvalidosError("La cuenta de mesa indicada no existe.")
+        if not cuenta.abierta:
+            raise DatosInvalidosError("La cuenta de mesa ya fue cobrada.")
+        if cliente_id:
+            cliente = db.session.get(Cliente, int(cliente_id))
+            if cliente is None or not cliente.activo:
+                raise DatosInvalidosError("El cliente seleccionado no existe o está inactivo.")
+            cuenta.cliente_id = cliente.id
+        else:
+            cuenta.cliente_id = None
+        db.session.commit()
+        return cuenta
+
+    def detalle_cuenta(self, cuenta_id):
+        cuenta = self.cuentas.obtener(cuenta_id)
+        if cuenta is None:
+            return None
+
+        rondas = []
+        for indice, venta in enumerate(cuenta.ventas, start=1):
+            if venta.cancelada:
+                continue
+            vigentes = [detalle for detalle in venta.detalles if not detalle.cancelado]
+            rondas.append(
+                {
+                    "numero": venta.comanda.ronda if venta.comanda else indice,
+                    "venta": venta,
+                    "comanda": venta.comanda,
+                    "detalles": venta.detalles,
+                    "vigentes": vigentes,
+                    "subtotal": venta.total,
+                    "articulos": sum(detalle.cantidad for detalle in vigentes),
+                }
+            )
+
+        comandas_activas = [
+            venta.comanda
+            for venta in cuenta.ventas_vigentes
+            if venta.comanda is not None
+            and venta.comanda.estado in (EstadoComanda.EN_PREPARACION, EstadoComanda.LISTA)
+        ]
+        return {
+            "cuenta": cuenta,
+            "rondas": rondas,
+            "total": cuenta.total,
+            "comandas_activas": comandas_activas,
+            "puede_cobrar": cuenta.abierta and not comandas_activas,
+        }
+
+    def cobrar_cuenta(self, cuenta_id, metodo_pago, usuario_id=None):
+        if metodo_pago not in MetodoPago.TODOS:
+            raise DatosInvalidosError("El método de pago no es válido.")
+
+        cuenta = self.cuentas.obtener(cuenta_id)
+        if cuenta is None:
+            raise DatosInvalidosError("La cuenta de mesa indicada no existe.")
+        if not cuenta.abierta:
+            raise DatosInvalidosError("La cuenta de mesa ya fue cobrada.")
+
+        ventas = cuenta.ventas_vigentes
+        pendientes = [
+            venta.comanda.folio
+            for venta in ventas
+            if venta.comanda is not None
+            and venta.comanda.estado in (EstadoComanda.EN_PREPARACION, EstadoComanda.LISTA)
+        ]
+        if pendientes:
+            raise DatosInvalidosError(
+                "Hay comandas de la mesa todavía en cocina: "
+                + ", ".join(pendientes)
+                + ". Entrégalas o regístralas como merma antes de cobrar."
+            )
+
+        ahora = datetime.now()
+        for venta in ventas:
+            venta.cobrada_en = ahora
+            venta.metodo_pago = metodo_pago
+            venta.cliente_id = cuenta.cliente_id
+            if venta.total > 0:
+                self.contabilidad.registrar_asiento(
+                    f"Cobro de cuenta {cuenta.folio} - venta {venta.folio} "
+                    f"(ronda {venta.comanda.ronda if venta.comanda else 1})",
+                    [
+                        (MetodoPago.CUENTA_CONTABLE[metodo_pago], venta.total, 0.0),
+                        (CUENTA_VENTAS, 0.0, venta.total),
+                    ],
+                    origen="VENTA",
+                    referencia=venta.folio,
+                )
+            if venta.comanda is not None and venta.comanda.cerrada_en is None:
+                venta.comanda.cerrada_en = ahora
+                venta.comanda.cerrada_por_id = usuario_id
+
+        cuenta.cerrada_en = ahora
+        cuenta.cerrada_por_id = usuario_id
+        cuenta.metodo_pago = metodo_pago
+        if cuenta.mesa is not None:
+            cuenta.mesa.estado = EstadoMesa.LIMPIEZA
+
+        db.session.commit()
+        return cuenta
+
+    def cancelar_detalle(self, detalle_id, motivo, password_admin, usuario_id=None):
+        detalle = db.session.get(VentaDetalle, detalle_id)
+        if detalle is None:
+            raise DatosInvalidosError("El platillo indicado no existe.")
+        if detalle.cancelado:
+            raise DatosInvalidosError("El platillo ya está cancelado.")
+
+        venta = detalle.venta
+        if venta.cuenta_id is None:
+            raise DatosInvalidosError(
+                "Solo se pueden cancelar platillos de una cuenta de mesa."
+            )
+        if venta.cobrada_en is not None:
+            raise DatosInvalidosError(
+                "La cuenta ya fue cobrada. No se puede cancelar el platillo."
+            )
+        if venta.cancelada:
+            raise DatosInvalidosError("La venta ya está cancelada.")
+        comanda = venta.comanda
+        if comanda is None:
+            raise DatosInvalidosError("El platillo no tiene comanda asociada.")
+
+        autorizador = None
+        for usuario in self.usuarios.activos():
+            if usuario.es_admin and usuario.verificar_password(password_admin or ""):
+                autorizador = usuario
+                break
+        if autorizador is None:
+            raise DatosInvalidosError(
+                "Se requiere la contraseña de un administrador para cancelar "
+                "un platillo ya enviado a cocina."
+            )
+
+        detalle.cancelado = True
+        detalle.cancelado_en = datetime.now()
+        detalle.motivo_cancelacion = (motivo or "Cancelado por el cliente").strip()
+        detalle.cancelado_por_id = usuario_id
+        detalle.autorizado_por_id = autorizador.id
+
+        venta.total = round(
+            sum(linea.subtotal for linea in venta.detalles if not linea.cancelado), 2
+        )
+
+        cancelacion = CancelacionPlatillo(
+            detalle_id=detalle.id,
+            comanda_id=comanda.id,
+            motivo=detalle.motivo_cancelacion,
+            cancelado_por_id=usuario_id,
+            autorizado_por_id=autorizador.id,
+        )
+        self.cancelaciones.agregar(cancelacion)
+        db.session.commit()
+        return cancelacion
+
+    def cancelaciones_pendientes(self):
+        return self.cancelaciones.pendientes()
+
+    def marcar_cancelacion_atendida(self, cancelacion_id, usuario_id=None):
+        cancelacion = self.cancelaciones.obtener(cancelacion_id)
+        if cancelacion is None:
+            raise DatosInvalidosError("La cancelación indicada no existe.")
+        if cancelacion.atendida_en is not None:
+            raise DatosInvalidosError("La cancelación ya fue atendida por cocina.")
+        cancelacion.atendida_en = datetime.now()
+        cancelacion.atendida_por_id = usuario_id
+        db.session.commit()
+        return cancelacion
 
     def detalle_comanda(self, comanda_id):
         comanda = self.comandas.obtener(comanda_id)
@@ -322,11 +658,19 @@ class VentaService:
         requerimientos = {}
         lineas = []
         for detalle in comanda.venta.detalles:
+            if detalle.cancelado:
+                lineas.append({"detalle": detalle, "ingredientes": []})
+                continue
             producto = detalle.producto
             almacen_id = producto.almacen_consumo_id
+            factor = (
+                detalle.variante.factor_receta
+                if detalle.variante is not None
+                else 1.0
+            )
             ingredientes = []
             for ingrediente in producto.receta:
-                cantidad = ingrediente.cantidad * detalle.cantidad
+                cantidad = ingrediente.cantidad * detalle.cantidad * factor
                 clave = (ingrediente.insumo_id, almacen_id)
                 requerimientos[clave] = requerimientos.get(clave, 0.0) + cantidad
                 ingredientes.append(
@@ -339,7 +683,7 @@ class VentaService:
             if detalle.guisado:
                 insumo_guisado = self.insumos.por_codigo(GUISADO_A_INSUMO[detalle.guisado])
                 if insumo_guisado is not None:
-                    cantidad = PORCION_GUISADO_KG * detalle.cantidad
+                    cantidad = PORCION_GUISADO_KG * detalle.cantidad * factor
                     clave = (insumo_guisado.id, almacen_id)
                     requerimientos[clave] = requerimientos.get(clave, 0.0) + cantidad
                     ingredientes.append(

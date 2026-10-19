@@ -1,4 +1,5 @@
 from app.models.contabilidad import Asiento, AsientoLinea, CuentaContable, GastoOperativo
+from app.models.crm import Cliente
 from app.models.inventario import (
     Almacen,
     AvisoFaltante,
@@ -7,10 +8,17 @@ from app.models.inventario import (
     MovimientoInventario,
     StockAlmacen,
 )
-from app.models.menu import Producto, RecetaIngrediente
+from app.models.menu import Producto, ProductoVariante, RecetaIngrediente
 from app.models.rrhh import Asistencia, NominaPago
 from app.models.usuario import Usuario
-from app.models.ventas import Comanda, Mesa, Venta, VentaDetalle
+from app.models.ventas import (
+    CancelacionPlatillo,
+    Comanda,
+    CuentaMesa,
+    Mesa,
+    Venta,
+    VentaDetalle,
+)
 
 __all__ = [
     "Asiento",
@@ -18,8 +26,11 @@ __all__ = [
     "Almacen",
     "Asistencia",
     "AvisoFaltante",
+    "CancelacionPlatillo",
+    "Cliente",
     "Comanda",
     "CuentaContable",
+    "CuentaMesa",
     "GastoOperativo",
     "Insumo",
     "Merma",
@@ -27,6 +38,7 @@ __all__ = [
     "MovimientoInventario",
     "NominaPago",
     "Producto",
+    "ProductoVariante",
     "RecetaIngrediente",
     "StockAlmacen",
     "Usuario",

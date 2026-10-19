@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block titulo %}Clientes (CRM) · La Época de Oro ERP{% endblock %}
+
+{% block contenido %}
+<div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+    <div>
+        <h1 class="font-clasica text-2xl font-bold">🧑‍🤝‍🧑 Clientes (CRM)</h1>
+        <p class="text-sm text-cafe/70">Directorio, cumpleaños, notas e historial de compras.</p>
+    </div>
+    <a href="{{ url_for('crm.nuevo') }}"
+       class="bg-verde hover:bg-verde/80 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition">
+        ➕ Nuevo cliente
+    </a>
+</div>
+
+<form method="get" action="{{ url_for('crm.index') }}" class="flex gap-2 mb-5">
+    <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar por nombre, teléfono o correo"
+           class="flex-1 border border-cremaoscura rounded-xl px-4 py-2.5 bg-white">
+    <button type="submit" class="bg-cafe hover:bg-cafeoscuro text-white font-bold px-5 rounded-xl transition">
+        🔍 Buscar
+    </button>
+</form>
+
+{% if clientes %}
+<div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+    {% for cliente in clientes %}
+    <a href="{{ url_for('crm.detalle', cliente_id=cliente.id) }}"
+       class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-4 hover:border-terracota transition block
+              {{ 'opacity-60' if not cliente.activo }}">
+        <div class="flex items-start justify-between gap-2">
+            <div>
+                <h2 class="font-bold">{{ cliente.nombre }}</h2>
+                <p class="text-sm text-cafe/60">📱 {{ cliente.telefono }}</p>
+                {% if cliente.email %}<p class="text-xs text-cafe/60">✉️ {{ cliente.email }}</p>{% endif %}
+            </div>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap
+                {{ 'bg-verdementa text-verde' if cliente.activo else 'bg-cremaoscura text-cafe/60' }}">
+                {{ 'Activo' if cliente.activo else 'Inactivo' }}
+            </span>
+        </div>
+        {% if cliente.cumpleanos %}
+        <p class="text-xs mt-2 text-cafe/70">🎂 Cumpleaños: {{ cliente.cumpleanos.strftime('%d/%m') }}</p>
+        {% endif %}
+        {% if cliente.notas %}
+        <p class="text-xs mt-2 text-cafe/60 line-clamp-2">📝 {{ cliente.notas }}</p>
+        {% endif %}
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bg-white rounded-2xl border border-cremaoscura p-8 text-center text-cafe/60">
+    No hay clientes que coincidan con la búsqueda.
+</div>
+{% endif %}
+{% endblock %}

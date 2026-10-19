@@ -2,6 +2,7 @@
     <div>
         <h1 class="font-clasica text-2xl font-bold">{{ comanda.folio }}
             {% if comanda.venta.mesa %}<span class="text-lg">· 🪑 Mesa {{ comanda.venta.mesa.numero }}</span>{% endif %}
+            {% if comanda.venta.cuenta %}<span class="text-lg">· 💵 {{ comanda.venta.cuenta.folio }}</span>{% endif %}
         </h1>
         <p class="text-sm text-cafe/70 mt-1">
             Mesero: <b class="text-terracota">{{ comanda.venta.mesero.nombre }}</b>
@@ -9,6 +10,10 @@
             · {{ Turno.ICONOS[comanda.turno] }} {{ Turno.ETIQUETAS[comanda.turno] }}
             · 🕐 {{ comanda.creada | fecha_hora }}
             · Total: <b>{{ comanda.venta.total | moneda }}</b>
+            {% if comanda.venta.cuenta %}
+            · <span class="text-terracota font-bold">RONDA {{ comanda.ronda }}{{ ' · ADICIÓN' if comanda.ronda > 1 }}</span>
+            {% endif %}
+            {% if comanda.venta.por_cobrar %}· <span class="text-amber-700 font-bold">POR COBRAR AL CERRAR LA CUENTA</span>{% endif %}
             {% if comanda.venta.cancelada %}· <span class="text-red-600 font-bold">VENTA CANCELADA</span>{% endif %}
         </p>
     </div>
@@ -25,8 +30,9 @@
 <div class="bg-red-50 border border-red-300 rounded-2xl p-4 mb-4 text-sm">
     <b class="text-red-800">🗑️ Merma registrada:</b> {{ comanda.motivo_merma }}
     {% if comanda.merma_en %}· {{ comanda.merma_en | fecha_hora }}{% endif %}
-    {% if comanda.venta.cancelada %}· la venta fue cancelada y el cobro revertido.{% else %}
-    · la venta se conservó (el cliente ya había pagado).{% endif %}
+    {% if comanda.venta.cancelada %}· la venta fue cancelada.
+    {% elif comanda.venta.cuenta_id %}· el platillo se conserva en la cuenta de la mesa; se cobra al cerrar.
+    {% else %}· la venta se conservó (el cliente ya había pagado).{% endif %}
 </div>
 {% endif %}
 
@@ -34,13 +40,22 @@
     <section class="bg-white rounded-2xl border border-cremaoscura shadow-sm p-5">
         <h2 class="font-clasica text-lg font-bold mb-3">🍽️ Platillos del pedido</h2>
         {% for linea in lineas %}
-        <div class="border-b border-crema/60 py-2">
-            <p class="font-semibold text-sm">
+        <div class="border-b border-crema/60 py-2 {{ 'opacity-60' if linea.detalle.cancelado }}">
+            <p class="font-semibold text-sm {{ 'line-through' if linea.detalle.cancelado }}">
                 {{ linea.detalle.cantidad }}× {{ linea.detalle.producto_nombre }}
+                {% if linea.detalle.variante_nombre %}
+                <span class="text-xs text-verde font-bold">· 📏 {{ linea.detalle.variante_nombre }}</span>
+                {% endif %}
                 {% if linea.detalle.guisado %}
                 <span class="text-xs text-terracota font-bold">· 🍲 {{ linea.detalle.guisado }}</span>
                 {% endif %}
             </p>
+            {% if linea.detalle.cancelado %}
+            <p class="text-xs text-red-700 font-bold mt-0.5">
+                🚫 CANCELADO: {{ linea.detalle.motivo_cancelacion }}
+                {% if linea.detalle.autorizado_por %}· autorizó {{ linea.detalle.autorizado_por.nombre }}{% endif %}
+            </p>
+            {% endif %}
             <ul class="text-xs text-cafe/70 mt-1 space-y-0.5">
                 {% for ingrediente in linea.ingredientes %}
                 <li>
@@ -104,7 +119,7 @@
         <p class="text-xs text-red-700 mt-3">
             Sugerencia: reporta los insumos agotados en
             <a href="{{ url_for('cocina.insumos') }}" class="font-bold underline">Insumos de cocina</a>
-            o registra una entrada/transferencia en inventario.
+            o registra una entrada de insumos en inventario.
         </p>
         {% endif %}
     </section>
