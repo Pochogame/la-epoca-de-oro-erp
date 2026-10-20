@@ -67,8 +67,9 @@ def confirmar():
             usuario_id=g.usuario.id,
             mesa_id=mesa_id,
             cliente_id=request.form.get("cliente_id", type=int),
+            agregar_a_cuenta=request.form.get("agregar_a_cuenta") == "1",
         )
-    except (ErrorDeNegocio, ValueError) as error:
+    except (ErrorDeNegocio, ValueError, TypeError) as error:
         db.session.rollback()
         mensaje = getattr(error, "mensaje", "El pedido no pudo procesarse. Verifica los datos.")
         flash(mensaje, "error")
@@ -169,7 +170,8 @@ def comandas_estado():
 def cuenta_detalle(cuenta_id):
     detalle = VentaService().detalle_cuenta(cuenta_id)
     if detalle is None:
-        abort(404)
+        flash("La cuenta ya no existe o fue cobrada desde otro dispositivo.", "error")
+        return redirect(url_for("pos.mesas"))
     return render_template(
         "pos/cuenta.html", clientes=ClienteService().activos(), **detalle
     )
@@ -201,7 +203,8 @@ def cobrar_cuenta(cuenta_id):
 def cuenta_ticket(cuenta_id):
     detalle = VentaService().detalle_cuenta(cuenta_id)
     if detalle is None:
-        abort(404)
+        flash("La cuenta ya no existe o fue cobrada desde otro dispositivo.", "error")
+        return redirect(url_for("pos.mesas"))
     return render_template("pos/cuenta_ticket.html", **detalle)
 
 

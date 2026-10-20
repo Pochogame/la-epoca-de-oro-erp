@@ -45,6 +45,9 @@
         <div class="pt-3">
             <p class="text-[10px] font-bold uppercase text-cafe/60 mb-1">
                 Ronda {{ ronda.numero }} · {{ ronda.venta.fecha | hora }}
+                {% if ronda.venta.tipo_orden == TipoOrden.LLEVAR %}
+                · 🛍️ Para llevar
+                {% endif %}
             </p>
             <table class="w-full text-xs mb-1">
                 <tbody>

@@ -249,33 +249,58 @@
     const bloquePago = document.getElementById('bloque-pago');
     const selectPago = document.getElementById('metodo_pago');
     const notaCuenta = document.getElementById('nota-cuenta');
+    const bloqueAgregarCuenta = document.getElementById('bloque-agregar-cuenta');
+    const checkAgregarCuenta = document.getElementById('agregar_a_cuenta');
+
+    function cargarACuenta() {
+        return Boolean(
+            checkAgregarCuenta &&
+            !checkAgregarCuenta.disabled &&
+            checkAgregarCuenta.checked
+        );
+    }
 
     function sincronizarMesa() {
         const tipo = document.querySelector('input[name="tipo_orden"]:checked');
         const esAqui = tipo && tipo.value === 'AQUI';
+        const opcionMesa = selectMesa ? selectMesa.selectedOptions[0] : null;
+        const cuentaAbierta =
+            opcionMesa && opcionMesa.dataset.cuentaAbierta === '1';
+        const mostrarAgregarCuenta = !esAqui && Boolean(cuentaAbierta);
+
         if (bloqueMesa) {
-            bloqueMesa.classList.toggle('opacity-40', !esAqui);
+            bloqueMesa.classList.remove('opacity-40');
         }
         if (selectMesa) {
-            selectMesa.disabled = !esAqui;
+            selectMesa.disabled = false;
             if (esAqui) {
                 selectMesa.setAttribute('required', 'required');
             } else {
                 selectMesa.removeAttribute('required');
-                selectMesa.value = '';
             }
         }
+        if (bloqueAgregarCuenta) {
+            bloqueAgregarCuenta.classList.toggle('hidden', !mostrarAgregarCuenta);
+        }
+        if (checkAgregarCuenta) {
+            checkAgregarCuenta.disabled = !mostrarAgregarCuenta;
+        }
+
+        const vaACuenta = esAqui || cargarACuenta();
         if (bloquePago) {
-            bloquePago.classList.toggle('hidden', esAqui);
+            bloquePago.classList.toggle('hidden', vaACuenta);
         }
         if (notaCuenta) {
-            notaCuenta.classList.toggle('hidden', !esAqui);
+            notaCuenta.classList.toggle('hidden', !vaACuenta);
+            notaCuenta.textContent = esAqui
+                ? '💵 Este pedido se agrega a la cuenta de la mesa. El pago se registra al cerrar la cuenta.'
+                : '💵 Se agrega a la cuenta de la mesa, pero cocina lo prepara para llevar. El pago se registra al cerrar la cuenta.';
         }
         if (selectPago) {
-            selectPago.disabled = esAqui;
+            selectPago.disabled = vaACuenta;
         }
         if (botonConfirmar) {
-            botonConfirmar.textContent = esAqui
+            botonConfirmar.textContent = vaACuenta
                 ? '🚀 Enviar a cocina (a la cuenta)'
                 : '🚀 Enviar a cocina y cobrar';
         }
@@ -284,6 +309,12 @@
     document.querySelectorAll('input[name="tipo_orden"]').forEach((radio) => {
         radio.addEventListener('change', sincronizarMesa);
     });
+    if (selectMesa) {
+        selectMesa.addEventListener('change', sincronizarMesa);
+    }
+    if (checkAgregarCuenta) {
+        checkAgregarCuenta.addEventListener('change', sincronizarMesa);
+    }
     sincronizarMesa();
 
     const parametros = new URLSearchParams(window.location.search);

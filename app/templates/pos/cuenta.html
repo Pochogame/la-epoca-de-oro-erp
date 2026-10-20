@@ -55,6 +55,9 @@
                         {% if ronda.numero > 1 %}
                         <span class="text-[10px] align-middle bg-terracota text-white px-2 py-0.5 rounded-full font-bold">ADICIÓN</span>
                         {% endif %}
+                        {% if ronda.venta.tipo_orden == TipoOrden.LLEVAR %}
+                        <span class="text-[10px] align-middle bg-sky-100 text-sky-900 border border-sky-300 px-2 py-0.5 rounded-full font-bold">🛍️ Para llevar</span>
+                        {% endif %}
                     </h2>
                     <p class="text-xs text-cafe/60">
                         {{ ronda.venta.folio }} · {{ ronda.venta.fecha | hora }}

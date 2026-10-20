@@ -6,7 +6,7 @@ Sistema ERP + POS para "La Época de Oro (Café, Guisados y Nostalgia)": punto d
 
 - Python 3.10+ con Flask 3, Flask-SQLAlchemy y SQLite (sin servicios externos).
 - Jinja2 + Tailwind CSS (CDN) + JavaScript vanilla para el carrito del POS y gráficas (Chart.js CDN por página).
-- pytest para las pruebas (75 pruebas de integración con base de datos en memoria).
+- pytest para las pruebas (78 pruebas de integración con base de datos en memoria).
 
 ## Instalación
 
@@ -71,7 +71,7 @@ docs/                      Prompt mejorado y reporte final
 
 - **Autenticación**: login, recuperación de contraseña y administración de usuarios (solo ADMIN).
 - **POS (meseros)**: turno mañana/tarde, carrito, modificador de guisados para tacos y tortas, selección de tamaño para pozole, menudo y aguas, selección de mesa y cliente, validación de stock con aviso de faltantes parciales (permite quitar líneas y continuar), métodos de pago y ticket imprimible. Incluye panel de comandas pendientes con estado en vivo.
-- **Cuentas de mesa por rondas**: cada mesa puede acumular varias rondas/adiciones aunque no sean seguidas; cocina ve solo la ronda nueva. La cuenta puede asociarse a un cliente y conserva esa asociación en todas sus rondas. El cobro se registra una sola vez al cerrar la cuenta (con ticket consolidado) y hasta entonces se reconoce el ingreso. Los platillos ya enviados pueden cancelarse con contraseña de administrador: se descuentan de la cuenta y cocina recibe un aviso de cancelación.
+- **Cuentas de mesa por rondas**: cada mesa puede acumular varias rondas/adiciones aunque no sean seguidas; cocina ve solo la ronda nueva. Una ronda puede marcarse como **para llevar** y aun así cargarse a la cuenta abierta de la mesa (por ejemplo, “mesa 5 pero para llevar”); cocina, cuenta y ticket muestran la marca. La cuenta puede asociarse a un cliente y conserva esa asociación en todas sus rondas. El cobro se registra una sola vez al cerrar la cuenta (con ticket consolidado) y hasta entonces se reconoce el ingreso. Los platillos ya enviados pueden cancelarse con contraseña de administrador: se descuentan de la cuenta y cocina recibe un aviso de cancelación.
 - **Mesas**: mapa del salón por zona (Interior, Terraza, Barra) con estados (libre, ocupada, reservada, limpieza) y cuenta abierta visible; la mesa pasa a limpieza al cobrar la cuenta.
 - **Cocina (chefs)**: comandas agrupadas por mesero, con auto-actualización (pulso), marca de ronda/adición, avisos de cancelación autorizada, marca de lista → entrega → merma (con opción de cancelar la venta), historial y visor de insumos por comanda.
 - **Insumos de cocina**: chefs reportan faltantes con un clic; el aviso aparece en el dashboard y se resuelve cuando llega el insumo.

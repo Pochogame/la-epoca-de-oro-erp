@@ -83,15 +83,15 @@ python -m venv .venv
 
 Las iteraciones siguientes ampliaron el alcance sin cambiar la arquitectura por capas:
 
-- Cuentas de mesa por rondas con cobro consolidado, cancelación autorizada de platillos y
-  tickets de cuenta.
+- Cuentas de mesa por rondas con cobro consolidado, cancelación autorizada de platillos,
+  tickets de cuenta y rondas marcadas como “para llevar” dentro de la cuenta de la mesa.
 - Tamaños/variantes por producto con precio y factor de receta propios (pozole, menudo y
   aguas), taco individual de $13 y edición de menú/precios desde Recetas.
 - Inventario simplificado a un solo almacén principal; la migración consolida
   automáticamente el stock de los almacenes anteriores y es idempotente.
 - Aviso de faltantes parciales en el POS con opción de quitar líneas y continuar.
 - CRM básico de clientes con historial, métricas y asociación de cliente a ventas y cuentas.
-- Suite actual: **75 pruebas de integración en verde**; la migración se verificó sobre una
+- Suite actual: **78 pruebas de integración en verde**; la migración se verificó sobre una
   copia de la base real y en una segunda carga para comprobar idempotencia.
 
 ## Notas y limitaciones

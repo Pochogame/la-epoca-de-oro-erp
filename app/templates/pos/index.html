@@ -157,7 +157,12 @@
                         <tr class="border-b border-crema/60">
                             <td class="py-2 pr-3 font-semibold">{{ venta.folio }}</td>
                             <td class="py-2 pr-3">{{ venta.fecha | fecha_hora }}</td>
-                            <td class="py-2 pr-3">{{ ('🪑 ' ~ venta.mesa.numero) if venta.mesa else '—' }}</td>
+                            <td class="py-2 pr-3">
+                                {{ ('🪑 ' ~ venta.mesa.numero) if venta.mesa else '—' }}
+                                {% if venta.tipo_orden == TipoOrden.LLEVAR %}
+                                <span class="block text-[10px] text-sky-800 font-bold">🛍️ para llevar</span>
+                                {% endif %}
+                            </td>
                             <td class="py-2 pr-3 font-bold">
                                 {{ venta.total | moneda }}
                                 {% if venta.por_cobrar %}
@@ -249,7 +254,7 @@
                 </div>
 
                 <div id="bloque-mesa">
-                    <label class="text-xs font-bold uppercase text-cafe/60" for="mesa_id">Mesa (si es para comer aquí)</label>
+                    <label class="text-xs font-bold uppercase text-cafe/60" for="mesa_id">Mesa (para comer aquí o cargar a una cuenta abierta)</label>
                     <select name="mesa_id" id="mesa_id"
                             class="w-full border border-cremaoscura rounded-lg px-3 py-2 mt-1 bg-crema/40">
                         <option value="">— Elegir mesa —</option>
@@ -259,6 +264,7 @@
                             {% set activas = mesa.comandas_activas | length %}
                             {% set cuenta_mesa = cuentas_abiertas.get(mesa.id) %}
                             <option value="{{ mesa.id }}"
+                                    data-cuenta-abierta="{{ '1' if cuenta_mesa else '0' }}"
                                     {{ 'disabled' if mesa.estado == EstadoMesa.RESERVADA }}>
                                 Mesa {{ mesa.numero }}{{ ' · reservada' if mesa.estado == EstadoMesa.RESERVADA }}{{ ' · 💵 cuenta abierta (' ~ cuenta_mesa.rondas ~ ' ronda' ~ ('s' if cuenta_mesa.rondas != 1) ~ ')' if cuenta_mesa }}{{ ' · ' ~ activas ~ ' comanda(s)' if activas }}
                             </option>
@@ -266,6 +272,19 @@
                         </optgroup>
                         {% endfor %}
                     </select>
+                </div>
+
+                <div id="bloque-agregar-cuenta" class="hidden bg-sky-50 border border-sky-300 rounded-xl px-3 py-2">
+                    <label class="flex items-start gap-2 text-sm cursor-pointer">
+                        <input type="checkbox" name="agregar_a_cuenta" id="agregar_a_cuenta" value="1"
+                               class="accent-terracota mt-0.5" checked>
+                        <span>
+                            <b>Se agrega a la mesa pero es para llevar</b>
+                            <span class="block text-[11px] text-sky-900/80">
+                                El pedido queda en la cuenta de la mesa y cocina lo prepara para llevar.
+                            </span>
+                        </span>
+                    </label>
                 </div>
 
                 <div id="bloque-pago">
@@ -341,7 +360,7 @@
     window.GUISADOS_DISPONIBLES = {{ guisados | tojson }};
     window.ETIQUETAS_COMANDA = {{ EstadoComanda.ETIQUETAS | tojson }};
     window.URL_COMANDA_DETALLE = "{{ url_for('pos.comanda_detalle', comanda_id=999999) }}".replace("999999", "");
-    window.URL_CERRAR_COMANDA = "{{ url_for('pos.cerrar_comanda', comanda_id=999999) }}".replace("999999", "");
+    window.URL_CERRAR_COMANDA = "{{ url_for('pos.cerrar_comanda', comanda_id=999999) }}";
     window.URL_POS_TURNO = "{{ url_for('pos.index', turno=turno) }}";
     window.URL_DISPONIBILIDAD = "{{ url_for('pos.disponibilidad') }}";
     window.TURNO_ACTUAL = "{{ turno }}";
@@ -387,7 +406,7 @@
                     '<a href="' + window.URL_COMANDA_DETALLE + comanda.id +
                     '" class="flex-1 text-center text-xs bg-white border border-cremaoscura font-bold py-1.5 rounded-lg hover:bg-crema transition">🔍 Ver insumos</a>' +
                     (comanda.cerrable
-                        ? '<form method="post" action="' + window.URL_CERRAR_COMANDA + comanda.id +
+                        ? '<form method="post" action="' + window.URL_CERRAR_COMANDA.replace("999999", comanda.id) +
                           '" class="flex-1"><input type="hidden" name="volver" value="' + window.URL_POS_TURNO +
                           '"><button type="submit" class="w-full text-xs bg-cafe hover:bg-cafeoscuro text-white font-bold py-1.5 rounded-lg transition">✅ Cerrar</button></form>'
                         : "") +

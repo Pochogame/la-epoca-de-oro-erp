@@ -16,7 +16,7 @@ from app.repositories.venta_repository import VentaRepositorio
 from tests.conftest import iniciar_sesion, insumo_id, producto_id, usuario_id
 
 
-def _confirmar(client, items, turno="MANANA", tipo="AQUI", metodo="EFECTIVO", mesa_id=None):
+def _confirmar(client, items, turno="MANANA", tipo="AQUI", metodo="EFECTIVO", mesa_id=None, **extra):
     datos = {
         "turno": turno,
         "tipo_orden": tipo,
@@ -25,6 +25,7 @@ def _confirmar(client, items, turno="MANANA", tipo="AQUI", metodo="EFECTIVO", me
     }
     if mesa_id is not None:
         datos["mesa_id"] = str(mesa_id)
+    datos.update(extra)
     return client.post("/pos/confirmar", data=datos, follow_redirects=True)
 
 
@@ -427,6 +428,76 @@ def test_rondas_se_acumulan_y_solo_se_reportan_al_cobrar(mesero_logueado, app):
         assert all(venta.metodo_pago == "EFECTIVO" for venta in incluidas)
         assert all(venta.cobrada_en is not None for venta in incluidas)
         assert Asiento.query.filter(Asiento.referencia.in_(folios)).count() == asientos_antes + 2
+
+
+def test_ronda_para_llevar_se_carga_a_la_cuenta_de_la_mesa(mesero_logueado, app):
+    client = mesero_logueado
+    with app.app_context():
+        mesa = Mesa.query.filter_by(estado="LIBRE").first()
+        mesa_id = mesa.id
+        cafe_id = producto_id("BEB-CAF-AM")
+        pan_id = producto_id("PAN-CONCHA")
+
+    _confirmar(client, [{"producto_id": cafe_id, "cantidad": 1}], mesa_id=mesa_id)
+    respuesta = _confirmar(
+        client,
+        [{"producto_id": pan_id, "cantidad": 2}],
+        tipo="LLEVAR",
+        mesa_id=mesa_id,
+        agregar_a_cuenta="1",
+    )
+    assert "Ronda 2 agregada a la cuenta" in respuesta.get_data(as_text=True)
+
+    with app.app_context():
+        cuenta = CuentaMesa.query.filter(CuentaMesa.cerrada_en.is_(None)).one()
+        assert cuenta.rondas == 2
+        assert cuenta.ventas[1].tipo_orden == "LLEVAR"
+        assert cuenta.ventas[1].mesa_id == mesa_id
+        assert cuenta.ventas[1].metodo_pago == "POR_COBRAR"
+        assert cuenta.ventas[1].comanda.tipo_orden == "LLEVAR"
+        assert cuenta.ventas[1].comanda.ronda == 2
+        cuenta_id = cuenta.id
+        comandas = [ronda.comanda for ronda in cuenta.ventas]
+
+    texto_cuenta = client.get(f"/pos/cuenta/{cuenta_id}").get_data(as_text=True)
+    assert "Para llevar" in texto_cuenta
+    texto_ticket = client.get(f"/pos/cuenta/{cuenta_id}/ticket").get_data(as_text=True)
+    assert "Para llevar" in texto_ticket
+
+    iniciar_sesion(client, "chef1", "chef123")
+    for comanda in comandas:
+        client.post(f"/cocina/comanda/{comanda.id}/listo", follow_redirects=True)
+        client.post(f"/cocina/comanda/{comanda.id}/entregar", follow_redirects=True)
+
+    iniciar_sesion(client, "mesero1", "mesero123")
+    respuesta = client.post(
+        f"/pos/cuenta/{cuenta_id}/cobrar",
+        data={"metodo_pago": "EFECTIVO"},
+        follow_redirects=True,
+    )
+    assert respuesta.status_code == 200
+    assert "Cuenta cobrada" in respuesta.get_data(as_text=True)
+
+    with app.app_context():
+        cuenta = db.session.get(CuentaMesa, cuenta_id)
+        assert cuenta.cerrada_en is not None
+        assert db.session.get(Mesa, mesa_id).estado == "LIMPIEZA"
+        assert all(venta.cobrada_en is not None for venta in cuenta.ventas)
+
+
+def test_cuenta_inexistente_redirige_a_mesas(mesero_logueado):
+    client = mesero_logueado
+    for ruta in ("/pos/cuenta/999999", "/pos/cuenta/999999/ticket"):
+        respuesta = client.get(ruta)
+        assert respuesta.status_code == 302
+        assert "/pos/mesas" in respuesta.headers["Location"]
+
+
+def test_pos_genera_accion_correcta_para_cerrar_comanda_en_tarjeta(mesero_logueado):
+    html = mesero_logueado.get("/pos/").get_data(as_text=True)
+    assert 'window.URL_CERRAR_COMANDA = "/pos/comanda/999999/cerrar";' in html
+    assert 'window.URL_CERRAR_COMANDA.replace("999999", comanda.id)' in html
+    assert 'window.URL_CERRAR_COMANDA + comanda.id' not in html
 
 
 def test_no_se_puede_cobrar_con_comandas_en_cocina(mesero_logueado, app):

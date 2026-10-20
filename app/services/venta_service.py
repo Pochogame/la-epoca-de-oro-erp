@@ -237,11 +237,16 @@ class VentaService:
         usuario_id=None,
         mesa_id=None,
         cliente_id=None,
+        agregar_a_cuenta=False,
     ):
         if turno not in Turno.TODOS:
             raise DatosInvalidosError("El turno seleccionado no es válido.")
         if tipo_orden not in (TipoOrden.AQUI, TipoOrden.LLEVAR):
             raise DatosInvalidosError("La modalidad de consumo no es válida.")
+        if agregar_a_cuenta and not mesa_id:
+            raise DatosInvalidosError(
+                "Elige la mesa a cuya cuenta se agregará el pedido."
+            )
         if not items:
             raise DatosInvalidosError("El pedido no tiene productos. Agrega al menos uno.")
 
@@ -253,7 +258,7 @@ class VentaService:
 
         mesa = None
         cuenta = None
-        if tipo_orden == TipoOrden.AQUI and mesa_id:
+        if mesa_id and (tipo_orden == TipoOrden.AQUI or agregar_a_cuenta):
             mesa = self.mesas.obtener(int(mesa_id))
             if mesa is None:
                 raise DatosInvalidosError("La mesa seleccionada no existe.")
