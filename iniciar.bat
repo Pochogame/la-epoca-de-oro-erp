@@ -8,28 +8,31 @@ echo   La Epoca de Oro ERP - Cafe, Guisados y Nostalgia
 echo ==================================================
 echo.
 
-if not exist ".venv\Scripts\python.exe" (
-    echo [1/3] Creando entorno virtual...
-    python -m venv .venv
+set "NECESITA_PREPARAR=0"
+if not exist ".venv\Scripts\python.exe" set "NECESITA_PREPARAR=1"
+if exist ".venv\Scripts\python.exe" (
+    ".venv\Scripts\python.exe" -c "import flask, flask_sqlalchemy" >nul 2>nul
+    if errorlevel 1 set "NECESITA_PREPARAR=1"
+)
+
+if "%NECESITA_PREPARAR%"=="1" (
+    echo [1/3] Preparando el entorno. Puede tardar la primera vez...
+    call "%~dp0instalar.bat" --auto
     if errorlevel 1 (
         echo.
-        echo ERROR: No se encontro Python. Instala Python 3.10+ desde
-        echo https://www.python.org/downloads/ y vuelve a ejecutar este archivo.
+        echo No se pudo preparar el entorno. Revisa los mensajes anteriores.
         pause
         exit /b 1
     )
-    echo [2/3] Instalando dependencias...
-    ".venv\Scripts\python.exe" -m pip install --quiet -r requirements.txt
-    if errorlevel 1 (
-        echo ERROR al instalar dependencias.
-        pause
-        exit /b 1
-    )
+) else (
+    echo [1/3] El entorno ya esta listo.
 )
 
 if not exist "instance\la_epoca_de_oro.db" (
-    echo [3/3] Creando base de datos con datos de demostracion...
+    echo [2/3] Creando base de datos con datos de demostracion...
     ".venv\Scripts\python.exe" seed.py
+) else (
+    echo [2/3] Base de datos encontrada.
 )
 
 echo.

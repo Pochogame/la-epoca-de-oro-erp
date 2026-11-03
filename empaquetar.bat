@@ -15,11 +15,10 @@ if errorlevel 1 goto :error
 for %%A in ("%ZIP%") do echo Paquete creado: %%A
 for %%A in ("%ZIP%") do echo Tamano: %%~zA bytes
 echo.
-echo Envia ese ZIP a tu amigo. El debe:
+echo Comparte ese ZIP (por ejemplo, con la empresa o el cliente). Debe:
 echo   1. Descargarlo y descomprimirlo (clic derecho, Extraer todo).
-echo   2. Tener Python 3.10 o superior instalado (python.org, marcar "Add to PATH").
-echo   3. Ejecutar instalar.bat (solo la primera vez) y luego iniciar.bat.
-echo      Si algo falta o falla, que use si_no_funciona_ejecuta_esto.bat.
+echo   2. Ejecutar iniciar.bat: instala Python si hace falta y abre el sistema.
+echo   3. Si algo falla, ejecutar si_no_funciona_ejecuta_esto.bat.
 echo.
 pause
 exit /b 0

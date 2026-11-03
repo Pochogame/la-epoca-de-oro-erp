@@ -1,43 +1,134 @@
-# La Época de Oro ERP
+# La Época de Oro · Sistema de gestión para restaurante
 
-Sistema ERP + POS para "La Época de Oro (Café, Guisados y Nostalgia)": punto de venta por turnos con tamaños de producto, comandas a cocina, inventario único con recetas (BOM), CRM básico de clientes, contabilidad de partida doble, RRHH con nómina y control de acceso por roles.
+**Prototipo funcional de ERP + POS para cafeterías, fondas y restaurantes.**
 
-## Stack
+Este proyecto concentra en una sola aplicación web la operación diaria de un negocio de
+alimentos: toma de pedidos, cuentas por mesa, comandas a cocina, control de inventario con
+recetas, historial de clientes, contabilidad y personal. Está pensado como una demostración
+ejecutable de una herramienta hecha a la medida, sin depender de servicios externos ni de
+configuraciones complejas.
 
-- Python 3.10+ con Flask 3, Flask-SQLAlchemy y SQLite (sin servicios externos).
-- Jinja2 + Tailwind CSS (CDN) + JavaScript vanilla para el carrito del POS y gráficas (Chart.js CDN por página).
-- pytest para las pruebas (78 pruebas de integración con base de datos en memoria).
+---
 
-## Instalación
+## Ver la demo en 3 pasos (Windows 10/11)
 
-En Windows puedes hacer doble clic en `instalar.bat` (crea el entorno, instala y verifica
-dependencias, y repara el entorno si estuviera dañado). Manualmente:
+1. Descarga el proyecto: botón verde **Code → Download ZIP** (o clona el repositorio).
+2. Descomprime el archivo ZIP.
+3. Haz doble clic en **`iniciar.bat`**.
+
+La primera vez, el sistema:
+
+- Instala Python 3.10 o superior automáticamente con `winget` si no está en el equipo.
+- Crea un entorno virtual e instala las dependencias.
+- Genera la base de datos con datos de demostración.
+- Abre el navegador en `http://127.0.0.1:5000`.
+
+> La primera ejecución puede tardar unos minutos. Las siguientes son inmediatas.
+
+Si algo falla, ejecuta **`si_no_funciona_ejecuta_esto.bat`**: elimina el entorno, lo reinstala
+y vuelve a iniciar el sistema.
+
+### Instalación manual (opcional)
+
+También puedes preparar el entorno manualmente. Requiere Python 3.10 o superior instalado y
+con la casilla *"Add python.exe to PATH"* activada.
 
 ```powershell
+# Windows (PowerShell)
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe seed.py
+.\.venv\Scripts\python.exe run.py
 ```
 
-## Ejecución
-
-```powershell
-.\.venv\Scripts\python.exe seed.py   # opcional: reinicia y siembra la base de datos
-.\.venv\Scripts\python.exe run.py    # http://127.0.0.1:5000
+```bash
+# macOS / Linux
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python seed.py
+python run.py
 ```
-
-La aplicación crea el archivo `instance/la_epoca_de_oro.db` y lo siembra automáticamente si está vacío. Al arrancar también aplica migraciones idempotentes (columnas y tablas nuevas, consolidación del almacén principal y sincronización del catálogo).
 
 ## Cuentas de prueba
 
 | Usuario | Contraseña | Rol | Acceso |
 |---|---|---|---|
-| admin | admin123 | ADMIN | Todo el sistema |
-| chef1 | chef123 | CHEF_SUPERVISOR | Cocina, inventario, mermas, recetas |
-| chef2 | chef123 | CHEF_SUPERVISOR | Cocina, inventario, mermas, recetas |
-| mesero1 | mesero123 | MESERO_POS | POS y comandas |
-| mesero2 | mesero123 | MESERO_POS | POS y comandas |
+| `admin` | `admin123` | Administrador | Todo el sistema |
+| `chef1` | `chef123` | Chef / supervisor | Cocina, inventario, mermas, recetas |
+| `chef2` | `chef123` | Chef / supervisor | Cocina, inventario, mermas, recetas |
+| `mesero1` | `mesero123` | Mesero / POS | Punto de venta y comandas |
+| `mesero2` | `mesero123` | Mesero / POS | Punto de venta y comandas |
 
-Correos: `<usuario>@laepocadeoro.com` (se usan en la recuperación de contraseña).
+Correos de recuperación: `<usuario>@laepocadeoro.com`.
+
+## Qué incluye
+
+- **Punto de venta por turnos** con carrito, tamaños de producto, guisados para tacos y
+  tortas, métodos de pago y ticket imprimible.
+- **Cuentas por mesa y rondas**: varias adiciones en una misma cuenta, una ronda puede ser
+  *para llevar* sin perder el vínculo con la mesa, cobro consolidado y cancelación autorizada
+  de platillos.
+- **Comandas a cocina** con estados en vivo (preparación, lista, entregada), mermas con motivo
+  y visor de insumos por comanda.
+- **Mapa de mesas** por zona, con estados de libre, ocupada, reservada y limpieza.
+- **Inventario con recetas (BOM)**: un almacén principal, entradas, mermas, alertas de stock
+  mínimo y descuento automático de insumos al vender.
+- **CRM de clientes**: historial de compras, visitas, ticket promedio, cumpleaños y notas.
+- **Reportes de ventas**: por día, por turno, horas pico, platillos más vendidos, rendimiento
+  por mesa y proyecciones.
+- **Contabilidad de partida doble**: asientos automáticos, gastos, cuentas por pagar, estado
+  de resultados y flujo de caja.
+- **Recursos humanos**: marcado de jornada, asistencias, incidencias y pago de nómina.
+
+## Módulos
+
+| Módulo | Descripción |
+|---|---|
+| Autenticación | Login, recuperación de contraseña y administración de usuarios (solo administrador). |
+| POS | Pedidos por turno, modificadores, tamaños, cliente, mesa y validación de existencias. |
+| Cuentas y mesas | Rondas, adiciones, cuentas por cobrar, cobro consolidado y mapa del salón. |
+| Cocina | Comandas agrupadas por mesero, actualización automática, mermas e historial. |
+| Inventario | Almacén principal, entradas, movimientos, mínimos y trazabilidad. |
+| Recetas | Costeo y descuento automático de insumos por platillo y tamaño. |
+| CRM | Directorio, métricas e historial de clientes. |
+| Reportes | Ventas, turnos, horas pico, platillos y rendimiento por mesa. |
+| Contabilidad | Libro diario, gastos, cuentas por pagar y estados financieros. |
+| RRHH | Jornadas, asistencias, incidencias y nómina. |
+
+## Stack tecnológico
+
+- **Backend:** Python 3.10+ con Flask 3 y SQLAlchemy 2.
+- **Base de datos:** SQLite local (sin servicios externos).
+- **Frontend:** Jinja2, Tailwind CSS (CDN) y JavaScript vanilla; Chart.js para gráficas.
+- **Pruebas:** pytest con base de datos en memoria.
+- **Arquitectura:** capas separadas de modelos, repositorios, servicios y controladores HTTP.
+
+## Estructura del proyecto
+
+```
+run.py                      Arranque del servidor
+seed.py                     Reinicia y siembra la base de datos
+iniciar.bat                 Instala si hace falta y arranca el sistema
+instalar.bat                Instala Python (winget), entorno y dependencias
+si_no_funciona_ejecuta_esto.bat  Reparación completa del entorno
+probar.bat                  Ejecuta la suite de pruebas
+empaquetar.bat              Genera un ZIP limpio para compartir
+app/
+  __init__.py               Fábrica create_app(), filtros y manejo de errores
+  config.py                 Configuración de desarrollo y pruebas
+  constants.py              Constantes de dominio (roles, turnos, cuentas)
+  security.py               Control de sesión y permisos por rol
+  models/                   Entidades SQLAlchemy
+  repositories/             Consultas y acceso a datos
+  services/                 Reglas de negocio y transacciones
+  blueprints/               Controladores HTTP por módulo
+  templates/                Vistas Jinja2
+  static/                   CSS y JavaScript
+tests/                      Suite de pruebas de integración
+docs/                       Documentación técnica y roadmap
+instance/                   Base de datos local (se crea automáticamente)
+```
 
 ## Pruebas
 
@@ -45,45 +136,38 @@ Correos: `<usuario>@laepocadeoro.com` (se usan en la recuperación de contraseñ
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-## Estructura del proyecto
+También puedes hacer doble clic en `probar.bat`. Estado actual: **78 pruebas de integración
+en verde**, con verificación de migraciones idempotentes sobre la base de datos.
 
-```
-run.py                     Arranque del servidor
-seed.py                    Reinicia y siembra la base de datos
-app/
-  __init__.py              Fábrica create_app(), filtros Jinja y manejadores de error
-  config.py                Configuración (desarrollo / pruebas)
-  constants.py             Constantes de dominio (roles, turnos, cuentas contables, etc.)
-  security.py              Sesiones: login_required y role_required
-  utilidades.py            Utilidades de fechas
-  models/                  Entidades SQLAlchemy (dominio)
-  repositories/            Acceso a datos (consultas por entidad)
-  services/                Reglas de negocio y transacciones
-  blueprints/              Controladores HTTP por módulo
-  templates/               Vistas Jinja2
-  static/                  CSS y JavaScript
-  seed.py                  Datos iniciales (usuarios, insumos, recetas, catálogo)
-tests/                     Suite pytest
-docs/                      Prompt mejorado y reporte final
+## Datos de demostración
+
+Al arrancar por primera vez, el sistema crea la base `instance/la_epoca_de_oro.db` y carga:
+
+- Usuarios y roles de ejemplo.
+- Insumos, recetas y catálogo de productos con precios y tamaños.
+- Mesas por zona y clientes de ejemplo.
+- Ventas y movimientos para que los reportes y el dashboard tengan información visible.
+
+Puedes reiniciar la demostración en cualquier momento con:
+
+```powershell
+.\.venv\Scripts\python.exe seed.py
 ```
 
-## Módulos
+## Alcance y notas
 
-- **Autenticación**: login, recuperación de contraseña y administración de usuarios (solo ADMIN).
-- **POS (meseros)**: turno mañana/tarde, carrito, modificador de guisados para tacos y tortas, selección de tamaño para pozole, menudo y aguas, selección de mesa y cliente, validación de stock con aviso de faltantes parciales (permite quitar líneas y continuar), métodos de pago y ticket imprimible. Incluye panel de comandas pendientes con estado en vivo.
-- **Cuentas de mesa por rondas**: cada mesa puede acumular varias rondas/adiciones aunque no sean seguidas; cocina ve solo la ronda nueva. Una ronda puede marcarse como **para llevar** y aun así cargarse a la cuenta abierta de la mesa (por ejemplo, “mesa 5 pero para llevar”); cocina, cuenta y ticket muestran la marca. La cuenta puede asociarse a un cliente y conserva esa asociación en todas sus rondas. El cobro se registra una sola vez al cerrar la cuenta (con ticket consolidado) y hasta entonces se reconoce el ingreso. Los platillos ya enviados pueden cancelarse con contraseña de administrador: se descuentan de la cuenta y cocina recibe un aviso de cancelación.
-- **Mesas**: mapa del salón por zona (Interior, Terraza, Barra) con estados (libre, ocupada, reservada, limpieza) y cuenta abierta visible; la mesa pasa a limpieza al cobrar la cuenta.
-- **Cocina (chefs)**: comandas agrupadas por mesero, con auto-actualización (pulso), marca de ronda/adición, avisos de cancelación autorizada, marca de lista → entrega → merma (con opción de cancelar la venta), historial y visor de insumos por comanda.
-- **Insumos de cocina**: chefs reportan faltantes con un clic; el aviso aparece en el dashboard y se resuelve cuando llega el insumo.
-- **Inventario**: un solo almacén principal, entradas con estado de pago, mermas con motivo, alertas de stock mínimo y bitácora de movimientos. Las bases existentes consolidan automáticamente el stock de los almacenes anteriores.
-- **Recetas (BOM)**: productos con receta por insumo; la venta descuenta insumos automáticamente y escala la receta según el tamaño elegido. Menú editable con precios, disponibilidad y tamaños (chico/mediano/grande, medio/litro). Cada tarjeta muestra stock disponible y "alcanza para ~N platillos".
-- **CRM (ADMIN)**: directorio de clientes con teléfono único, cumpleaños, notas e historial de compras; muestra visitas, total consumido, ticket promedio y última compra. El POS permite asociar un cliente a una venta o cuenta sin salir del flujo de cobro.
-- **Reportes (ADMIN)**: ventas por día, horas pico, top platillos, por turno, rendimiento por mesa y proyecciones, con gráficas.
-- **Contabilidad**: libro diario con asientos automáticos (venta, compra, gasto, merma de insumo y de platillo, cancelación, nómina y pagos), gastos operativos, cuentas por pagar, estado de resultados real por turno y flujo de caja.
-- **RRHH**: marcado rápido de jornada (entrada/retardo/salida con hora del servidor), registro manual, asistencias con validaciones y pago de nómina por periodo (sin doble pago).
+- Es un **prototipo funcional** de demostración, no una versión endurecida para producción.
+- Los datos viven en un archivo SQLite local dentro de `instance/`; nada sale del equipo.
+- El servidor escucha en `0.0.0.0:5000`, por lo que también puedes abrirlo desde otra
+  computadora o tablet en la misma red usando la IP del equipo (por ejemplo,
+  `http://192.168.1.20:5000`).
+- Para un despliegue público o multi-sucursal se recomienda migrar a un servidor de
+  aplicaciones con base de datos centralizada, respaldos y HTTPS.
+- El proyecto se entrega sin datos reales del negocio.
 
 ## Documentación
 
-- `docs/PROMPT_MEJORADO.md`: versión optimizada del prompt original.
-- `docs/REPORTE_FINAL.md`: correcciones aplicadas, por qué y evidencia de verificación.
-- `docs/ROADMAP.md`: ideas acordadas para después (lealtad, reservaciones, modo móvil, etc.).
+- [`docs/REPORTE_FINAL.md`](docs/REPORTE_FINAL.md): decisiones técnicas y evidencia de verificación.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md): siguientes módulos sugeridos (lealtad, reservaciones,
+  facturación, impresión térmica, cobro dividido, respaldos automáticos).
+- [`docs/PROMPT_MEJORADO.md`](docs/PROMPT_MEJORADO.md): alcance original del sistema.

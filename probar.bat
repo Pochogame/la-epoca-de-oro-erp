@@ -9,7 +9,7 @@ if not exist ".venv\Scripts\python.exe" (
     exit /b 1
 )
 
-echo Ejecutando las 45 pruebas de integracion...
+echo Ejecutando la suite de pruebas de integracion...
 echo.
 ".venv\Scripts\python.exe" -m pytest -q
 echo.
